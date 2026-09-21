@@ -1,0 +1,376 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Visibility {
+  public
+  unlisted
+  private
+}
+
+enum Rating {
+  safe
+  mature
+}
+
+enum ThreadMode {
+  character
+  scene
+  world
+  group
+  multi_npc
+}
+
+enum Plan {
+  free
+  plus
+  admin
+}
+
+enum MessageRole {
+  user
+  assistant
+  system
+}
+
+enum TxType {
+  grant
+  spend_chat
+  spend_image
+  creator_share
+  bonus
+  donate
+}
+
+enum NsfwIntensity {
+  off
+  suggestive
+  explicit
+}
+
+enum ContentMode {
+  all
+  safe_only
+}
+
+model User {
+  id              String    @id @default(cuid())
+  handle          String    @unique
+  displayName     String
+  bio             String?
+  avatarUrl       String?
+  locale          String    @default("th-TH")
+  plan            Plan      @default(free)
+  ageVerifiedAt   DateTime?
+  contentMode     ContentMode @default(all)
+  nsfwDefaultOn   Boolean   @default(true)
+  moons           Int       @default(30)
+  bannedAt        DateTime?
+  createdAt       DateTime  @default(now())
+  characters      Character[]
+  scenes          Scene[]
+  worlds          World[]
+  personas        Persona[]
+  threads         Thread[]
+  tx              Transaction[]
+  posts           Post[]
+  comments        Comment[]
+  notifications   Notification[]
+  collaborations  Collaboration[]
+  socialEdges     SocialEdge[]
+  reports         Report[]  @relation("Reporter")
+  threadMembers   ThreadMember[]
+}
+
+model Tag {
+  id         String      @id @default(cuid())
+  slug       String      @unique
+  labelTh    String
+  labelEn    String
+  group      String
+  characters Character[]
+  scenes     Scene[]
+  worlds     World[]
+}
+
+model Character {
+  id                 String        @id @default(cuid())
+  creatorId          String
+  name               String
+  tagline            String
+  description        String
+  personality        String
+  speakingStyle      String
+  greeting           String
+  systemInstruction  String
+  exampleDialogs     String        @default("[]")
+  forbiddenTopics    String        @default("[]")
+  appearancePrompt   String?
+  avatarUrl          String?
+  galleryUrls        String        @default("[]")
+  genderPresentation String        @default("unspecified")
+  innerMonologueDefault Boolean    @default(false)
+  nsfwIntensity      NsfwIntensity @default(off)
+  rating             Rating        @default(safe)
+  visibility         Visibility    @default(private)
+  customHashtags     String        @default("[]")
+  publishedAt        DateTime?
+  chatCount          Int           @default(0)
+  messageCount       Int           @default(0)
+  likeCount          Int           @default(0)
+  featured           Boolean       @default(false)
+  creator            User          @relation(fields: [creatorId], references: [id])
+  tags               Tag[]
+  scenarios          Scenario[]
+  sceneLinks         SceneNpc[]
+  worldResidents     WorldResident[]
+  threads            Thread[]
+}
+
+model Scenario {
+  id           String   @id @default(cuid())
+  characterId  String
+  title        String
+  description  String
+  prompt       String
+  firstMessage String
+  tags         String   @default("[]")
+  rating       Rating   @default(safe)
+  character    Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+}
+
+model World {
+  id          String      @id @default(cuid())
+  creatorId   String
+  title       String
+  premise     String
+  setting     String
+  tone        String
+  lore        String
+  coverUrl    String?
+  rating      Rating      @default(safe)
+  visibility  Visibility  @default(private)
+  customHashtags String   @default("[]")
+  featured    Boolean     @default(false)
+  playCount   Int         @default(0)
+  publishedAt DateTime?
+  creator     User        @relation(fields: [creatorId], references: [id])
+  tags        Tag[]
+  scenes      Scene[]
+  residents   WorldResident[]
+  threads     Thread[]
+}
+
+model WorldResident {
+  worldId     String
+  characterId String
+  role        String
+  world       World     @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  @@id([worldId, characterId])
+}
+
+model Scene {
+  id               String      @id @default(cuid())
+  creatorId        String
+  worldId          String?
+  title            String
+  premise          String
+  openingNarration String
+  setting          String
+  tone             String
+  playerRole       String
+  rulesForAi       String
+  pov              String      @default("second")
+  rating           Rating      @default(safe)
+  visibility       Visibility  @default(private)
+  featured         Boolean     @default(false)
+  publishedAt      DateTime?
+  playCount        Int         @default(0)
+  messageCount     Int         @default(0)
+  creator          User        @relation(fields: [creatorId], references: [id])
+  world            World?      @relation(fields: [worldId], references: [id])
+  tags             Tag[]
+  worldCards       WorldCard[]
+  npcs             SceneNpc[]
+  threads          Thread[]
+}
+
+model WorldCard {
+  id           String  @id @default(cuid())
+  sceneId      String
+  title        String
+  type         String  @default("custom")
+  body         String
+  triggerWords String  @default("[]")
+  alwaysOn     Boolean @default(false)
+  linkedCardIds String @default("[]")
+  weight       Float   @default(1)
+  scene        Scene   @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+}
+
+model SceneNpc {
+  sceneId     String
+  characterId String
+  role        String
+  scene       Scene     @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  @@id([sceneId, characterId])
+}
+
+model Persona {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  appearance  String?
+  personality String?
+  notes       String?
+  isDefault   Boolean  @default(false)
+  user        User     @relation(fields: [userId], references: [id])
+  threads     Thread[]
+}
+
+model Thread {
+  id             String       @id @default(cuid())
+  userId         String
+  mode           ThreadMode
+  characterId    String?
+  sceneId        String?
+  worldId        String?
+  personaId      String?
+  modelId        String       @default("default")
+  nsfwUnlocked   Boolean      @default(true)
+  innerMonologue Boolean      @default(false)
+  summary        String?
+  lastActivityAt DateTime     @default(now())
+  user           User         @relation(fields: [userId], references: [id])
+  character      Character?   @relation(fields: [characterId], references: [id])
+  scene          Scene?       @relation(fields: [sceneId], references: [id])
+  world          World?       @relation(fields: [worldId], references: [id])
+  persona        Persona?     @relation(fields: [personaId], references: [id])
+  messages       Message[]
+  memoryCards    MemoryCard[]
+  members        ThreadMember[]
+}
+
+model ThreadMember {
+  threadId String
+  userId   String
+  role     String @default("player")
+  thread   Thread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([threadId, userId])
+}
+
+model Message {
+  id            String      @id @default(cuid())
+  threadId      String
+  role          MessageRole
+  content       String
+  parentId      String?
+  isRegenerated Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  thread        Thread      @relation(fields: [threadId], references: [id], onDelete: Cascade)
+}
+
+model MemoryCard {
+  id            String   @id @default(cuid())
+  threadId      String
+  title         String
+  body          String
+  pinned        Boolean  @default(false)
+  autoGenerated Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  thread        Thread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+}
+
+model Transaction {
+  id        String   @id @default(cuid())
+  userId    String
+  type      TxType
+  amount    Int
+  refType   String?
+  refId     String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Report {
+  id         String   @id @default(cuid())
+  reporterId String
+  targetType String
+  targetId   String
+  reason     String
+  status     String   @default("open")
+  createdAt  DateTime @default(now())
+  reporter   User     @relation("Reporter", fields: [reporterId], references: [id])
+}
+
+model Collaboration {
+  workType String
+  workId   String
+  userId   String
+  role     String
+  user     User   @relation(fields: [userId], references: [id])
+  @@id([workType, workId, userId])
+}
+
+model SocialEdge {
+  userId     String
+  targetType String
+  targetId   String
+  kind       String
+  user       User   @relation(fields: [userId], references: [id])
+  @@id([userId, targetType, targetId, kind])
+}
+
+model Post {
+  id        String    @id @default(cuid())
+  authorId  String
+  workType  String?
+  workId    String?
+  body      String
+  createdAt DateTime  @default(now())
+  author    User      @relation(fields: [authorId], references: [id])
+  comments  Comment[]
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  body      String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model ModerationJob {
+  id         String   @id @default(cuid())
+  targetType String
+  targetId   String
+  verdict    String
+  reason     String?
+  reviewerId String?
+  createdAt  DateTime @default(now())
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String
+  payload   String    @default("{}")
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id])
+}
+
+model FeatureFlag {
+  key     String  @id
+  enabled Boolean
+}

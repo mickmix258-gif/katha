@@ -1,0 +1,128 @@
+{
+  "app": {
+    "name": "KATHA",
+    "tagline": "เล่นเรื่อง สร้างโลก คุยกับตัวละคร",
+    "threeSurfaces": {
+      "character": "ตัวละคร",
+      "sceneWorld": "ฉากเรื่องและโลก",
+      "gallery": "แกลเลอรี"
+    }
+  },
+  "nav": {
+    "home": "หน้าแรก",
+    "characters": "ตัวละคร",
+    "scenes": "ฉากเรื่อง",
+    "worlds": "โลก",
+    "gallery": "แกลเลอรี",
+    "explore": "สำรวจ",
+    "create": "สร้าง",
+    "studio": "สตูดิโอ",
+    "wallet": "กระเป๋า",
+    "threads": "บทของฉัน",
+    "notifications": "การแจ้งเตือน",
+    "settings": "ตั้งค่า"
+  },
+  "actions": {
+    "startPlay": "เริ่มบท",
+    "continue": "เล่นต่อ",
+    "createCharacter": "สร้างตัวละคร",
+    "quickCreate": "สร้างเร็ว",
+    "fullCreate": "สร้างแบบเต็ม",
+    "createScene": "สร้างฉากเรื่อง",
+    "createWorld": "สร้างโลก",
+    "publish": "เผยแพร่",
+    "saveDraft": "บันทึกฉบับร่าง",
+    "follow": "ติดตาม",
+    "following": "ติดตามแล้ว",
+    "like": "ถูกใจ",
+    "dislike": "ไม่ถูกใจ",
+    "save": "เก็บไว้",
+    "share": "แชร์",
+    "report": "รายงาน",
+    "donate": "ส่งพระจันทร์"
+  },
+  "filters": {
+    "popular": "ยอดนิยม",
+    "fresh": "มาใหม่",
+    "newest": "ล่าสุด",
+    "top": "ท็อป",
+    "following": "ที่ติดตาม",
+    "saved": "ที่เก็บไว้",
+    "liked": "ที่ถูกใจ",
+    "mine": "ของฉัน",
+    "today": "วันนี้",
+    "week": "7 วัน",
+    "month": "30 วัน",
+    "all": "ทั้งหมด",
+    "safe": "ทั่วไป",
+    "mature": "ผู้ใหญ่",
+    "explicit": "โจ่งแจ้ง",
+    "suggestive": "ยั่วยวน",
+    "allContent": "แสดงทั้งหมด",
+    "safeOnly": "ซ่อนผู้ใหญ่",
+    "trending": "กำลังฮิต",
+    "mostPlayed": "เล่นมากสุด",
+    "mostMessages": "บทมากสุด"
+  },
+  "entity": {
+    "character": "ตัวละคร",
+    "scene": "ฉากเรื่อง",
+    "world": "โลก",
+    "worldCard": "ใบโลก",
+    "memoryCard": "ใบจำ",
+    "thread": "บท",
+    "persona": "ตัวตน",
+    "scenario": "บทเปิด",
+    "innerMonologue": "บทในใจ",
+    "moon": "พระจันทร์"
+  },
+  "play": {
+    "send": "ส่ง",
+    "regenerate": "สร้างใหม่",
+    "edit": "แก้",
+    "branch": "แยกสาขา",
+    "pinMemory": "ปักใบจำ",
+    "export": "ส่งออก",
+    "model": "โมเดล",
+    "length": "ความยาว",
+    "tone": "โทน",
+    "background": "ฉากหลัง"
+  },
+  "editor": {
+    "name": "ชื่อ",
+    "tagline": "คำโปรย",
+    "description": "คำอธิบายที่คนเห็น",
+    "systemInstruction": "คำสั่งระบบ (ซ่อนได้)",
+    "greeting": "คำทักทาย",
+    "personality": "บุคลิก",
+    "speakingStyle": "วิธีพูด",
+    "appearance": "หน้าตา",
+    "forbidden": "สิ่งที่ห้าม",
+    "tags": "แท็ก",
+    "rating": "เรตติ้ง",
+    "visibility": "การมองเห็น",
+    "preview": "ทดลองคุย"
+  },
+  "wallet": {
+    "balance": "ยอดพระจันทร์",
+    "dailyGrant": "โบนัสรายวัน",
+    "topup": "เติม",
+    "ledger": "รายการ",
+    "creatorShare": "ส่วนแบ่งครีเอเตอร์"
+  },
+  "moderation": {
+    "pending": "รอตรวจ",
+    "approved": "ผ่าน",
+    "declined": "ไม่ผ่าน",
+    "needsReview": "ต้องตรวจมือ"
+  },
+  "legal": {
+    "ageGate": "เนื้อหาผู้ใหญ่ สำหรับอายุ 18 ปีขึ้นไป",
+    "acceptRules": "ยอมรับกติกาชุมชนก่อนเผยแพร่"
+  },
+  "empty": {
+    "catalog": "ยังไม่มีผลงานในหมวดนี้",
+    "thread": "เริ่มบทแรกได้เลย",
+    "notifications": "ยังไม่มีการแจ้งเตือน"
+  }
+}
