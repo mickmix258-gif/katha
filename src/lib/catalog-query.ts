@@ -80,7 +80,7 @@ export function filterAndSortWorks<T extends WorkLike>(
   items: T[],
   params: CatalogParams,
   social?: SocialSnapshot,
-  opts?: { kind?: "character" | "scene" | "world" },
+  opts?: { kind?: "character" | "scene" | "world"; mineHandle?: string },
 ): T[] {
   const start = windowStart(params.window);
   let list = items.filter((item) => {
@@ -97,7 +97,10 @@ export function filterAndSortWorks<T extends WorkLike>(
       if (params.section === "liked" && !social.liked.includes(item.id)) return false;
       if (params.section === "saved" && !social.saved.includes(item.id)) return false;
       if (params.section === "following" && !social.following.includes(item.creatorHandle)) return false;
-      if (params.section === "mine") return false; // anonymous M2
+      if (params.section === "mine") {
+        if (opts?.mineHandle) return item.creatorHandle === opts.mineHandle;
+        return false;
+      }
       if (social.disliked.includes(item.id) && params.section === "all") {
         // keep but downrank later
       }

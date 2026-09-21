@@ -1,22 +1,93 @@
+"use client";
+
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { getCharacter, getWorld, scenes, tagLabel } from "@/data/catalog";
+import { use, useEffect, useState } from "react";
 import { FollowButton } from "@/components/follow-button";
 import { WorkActions } from "@/components/work-actions";
+import { getCharacter, getWorld, scenes, tagLabel } from "@/data/catalog";
+import {
+  getUserCharacter,
+  getUserWorld,
+  publishedScenes,
+  readWorks,
+} from "@/lib/user-works-store";
 
-export default async function WorldDetail({
+type View = {
+  id: string;
+  creatorHandle: string;
+  title: string;
+  premise: string;
+  lore: string;
+  tags: string[];
+  residentIds: string[];
+  likeCount: number;
+  status?: string;
+  isOwner?: boolean;
+};
+
+export default function WorldDetail({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const item = getWorld(id);
-  if (!item) notFound();
-  const worldScenes = scenes.filter((scene) => scene.worldId === item.id);
+  const { id } = use(params);
+  const [item, setItem] = useState<View | null | undefined>(undefined);
+  const [worldScenes, setWorldScenes] = useState<{ id: string; title: string }[]>([]);
+
+  useEffect(() => {
+    const seed = getWorld(id);
+    if (seed) {
+      setItem({ ...seed, isOwner: false });
+      const userScenes = [...readWorks().scenes, ...publishedScenes()].filter((s) => s.worldId === id);
+      setWorldScenes([
+        ...scenes.filter((s) => s.worldId === id).map((s) => ({ id: s.id, title: s.title })),
+        ...userScenes.map((s) => ({ id: s.id, title: s.title })),
+      ]);
+      return;
+    }
+    const user = getUserWorld(id);
+    if (user) {
+      setItem({
+        id: user.id,
+        creatorHandle: user.creatorHandle,
+        title: user.title,
+        premise: user.premise,
+        lore: user.lore,
+        tags: user.tags,
+        residentIds: user.residentIds,
+        likeCount: user.likeCount,
+        status: user.status,
+        isOwner: true,
+      });
+      const userScenes = readWorks().scenes.filter((s) => s.worldId === id);
+      setWorldScenes(userScenes.map((s) => ({ id: s.id, title: s.title })));
+      return;
+    }
+    setItem(null);
+  }, [id]);
+
+  if (item === undefined) {
+    return <div className="mx-auto max-w-3xl px-4 py-10 text-[var(--muted)]">กำลังโหลด…</div>;
+  }
+  if (!item) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-10">
+        <h1 className="text-2xl">ไม่พบโลก</h1>
+        <Link href="/worlds" className="mt-4 inline-block text-[var(--accent-2)]">
+          กลับตลาดโลก
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <h1 className="text-4xl">{item.title}</h1>
+      {item.status === "pending_moderation" ? (
+        <p className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--paper)] px-3 py-2 text-sm text-[var(--accent-2)]">
+          สถานะ: รอตรวจ (stub)
+        </p>
+      ) : null}
       <FollowButton handle={item.creatorHandle} />
       <WorkActions workId={item.id} baseLikes={item.likeCount ?? 0} />
       <p className="mt-3 text-[var(--muted)]">{item.premise}</p>
@@ -31,10 +102,10 @@ export default async function WorldDetail({
       <h2 className="mt-8 text-xl">ผู้อยู่อาศัย</h2>
       <div className="mt-3 grid gap-2">
         {item.residentIds.map((residentId) => {
-          const resident = getCharacter(residentId);
+          const resident = getCharacter(residentId) ?? getUserCharacter(residentId);
           return resident ? (
-            <Link key={resident.id} href={`/characters/${resident.id}`} className="rounded-xl border border-[var(--line)] p-3">
-              {resident.name}
+            <Link key={residentId} href={`/characters/${residentId}`} className="rounded-xl border border-[var(--line)] p-3">
+              {"name" in resident ? resident.name : residentId}
             </Link>
           ) : null;
         })}
@@ -46,7 +117,16 @@ export default async function WorldDetail({
             {scene.title}
           </Link>
         ))}
+        {!worldScenes.length ? <p className="text-sm text-[var(--muted)]">ยังไม่มีฉาก</p> : null}
       </div>
+      {item.isOwner ? (
+        <Link
+          href={`/create/world?id=${item.id}`}
+          className="mt-6 inline-flex rounded-full border border-[var(--line)] px-5 py-3 text-sm"
+        >
+          แก้ไข
+        </Link>
+      ) : null}
     </div>
   );
 }
