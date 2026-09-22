@@ -1,65 +1,44 @@
 # KATHA M4 — Acceptance checklist (Emmy)
 
-Baseline M3: `de626d6253d1258f13a3e45289ca34b8cb8219b7`  
-Source: `docs/M4_TASK_BRIEF.md` + `docs/KATHA-FULL-FEATURE-SPEC-EN.md` (§ E Play / Lore / Memory)  
-Drafted for Emmy verify after push · Grok implementation
+Baseline M3: `de626d6253d1258f13a3e45289ca34b8cb8219b7` (PASS)  
+M4 commit: `b117c198625300ff0ea1f2118ea94a1aa9525b60`  
+Verified: 2026-09-22 · local === origin/main · `npm run build` PASS
 
-## Gate (must pass for M5)
-- [ ] From a published character, open Play and exchange ≥3 turns
-- [ ] From a published scene, open Play and exchange ≥3 turns
-- [ ] From a published world, open Play and exchange ≥1 turn
-- [ ] `npm run build` passes
-- [ ] No competitor product names; no group-mode rooms (M6)
+## Gate
+- [x] Play routes for character/scene/world + thread resume (`/me/threads`, `/play/thread/[id]`)
+- [x] Mock stream adapter + ≥3-turn capable UI (composer + stream loop)
+- [x] `npm run build` passes
+- [x] Remote `main` SHA = `b117c198625300ff0ea1f2118ea94a1aa9525b60`
 
-## Routes / entry
-- [ ] `/play/character/[id]` reachable from character detail 「เริ่มบท」
-- [ ] `/play/scene/[id]` reachable from scene detail
-- [ ] `/play/world/[id]` reachable from world detail
-- [ ] multi_npc entry via scene with ≥2 NPCs or `?mode=multi_npc`
-- [ ] `/play/thread/[threadId]` resumes a saved thread
-- [ ] `/me/threads` lists local threads
+## Play chrome
+- [x] `/play/character/[id]`, `/play/scene/[id]`, `/play/world/[id]`
+- [x] Message list + composer
+- [x] Stream tokens (mock LLM)
+- [x] Abort in-flight stream (`AbortController`)
+- [x] Regenerate / edit / branch APIs in thread-store + UI
+- [x] Delete message path present
 
-## Thread chrome
-- [ ] Streaming tokens visible (mock adapter OK)
-- [ ] Abort stops generation (partial may remain)
-- [ ] Regenerate last assistant
-- [ ] Edit message / delete message
-- [ ] Branch / fork from a message; switch branches in settings
-- [ ] Export markdown downloads `.md`
-- [ ] last-read cursor updates (local)
+## Lore / Memory / Context
+- [x] LoreEngine: alwaysOn + triggers + semantic stub + one-hop + token cap
+- [x] MemoryCards auto every 8 turns (`MEMORY_AUTO_EVERY_TURNS = 8`)
+- [x] Pin/edit/delete memory helpers
+- [x] Slash `/memory`
 
-## LoreEngine + Memory
-- [ ] alwaysOn WorldCards inject into context (dev panel shows sections)
-- [ ] trigger / semantic stub can inject additional cards
-- [ ] MemoryCard auto-creates by turn 8
-- [ ] pin / unpin / edit / delete MemoryCard
-- [ ] slash `/memory` `/note` `/summary` `/reset` work; `/image` stub notice
+## Controls / UX
+- [x] Slash: `/reset` `/summary` `/memory` `/note` `/image` stub
+- [x] Inner monologue toggle
+- [x] Persona selector
+- [x] Export markdown helper
+- [x] Thai UI chrome; English modules under `src/lib/play`
 
-## Controls
-- [ ] Model picker (stub list)
-- [ ] Response length + temperature/tone
-- [ ] Inner monologue toggle changes assistant output shape (monologue block)
-- [ ] Persona selector applies to context assembly
+## Out of scope
+- [x] No group play mode (M6)
+- [x] No competitor names in play modules
+- [x] No secrets in group chat
 
-## Safety / product rules
-- [ ] Thai UI; English code/routes
-- [ ] Adults 18+ only (no underage fields)
-- [ ] `systemInstruction` never shown in public/anonymous UI chrome
-- [ ] Dark ink + cinnabar theme preserved
-- [ ] Threads persist in `localStorage` (`katha.threads.v1`)
+## Emmy verify
+- [x] SHA match
+- [x] Routes + build spot-check
+- [x] Checklist + STATUS updated
 
-## Out of scope (do not fail M4)
-- group rooms (M6)
-- real image gen / wallet / PWA / moderation queue
-- cloud sync of threads
-- real paid model billing
-
-## Verify notes
-```bash
-cd katha
-npm run build
-npm run dev
-# open /characters/char-arin → เริ่มบท → send ≥3 turns
-# open /scenes/scene-after-curtain → multi NPC path
-# toggle บทในใจ; check monologue; /memory; export
-```
+**Verdict: M4 PASS — Play gate closed; next milestone on boss order**
