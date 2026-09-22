@@ -119,14 +119,22 @@ export default function WorldDetail({
         ))}
         {!worldScenes.length ? <p className="text-sm text-[var(--muted)]">ยังไม่มีฉาก</p> : null}
       </div>
-      {item.isOwner ? (
+      <div className="mt-8 flex flex-wrap gap-3">
         <Link
-          href={`/create/world?id=${item.id}`}
-          className="mt-6 inline-flex rounded-full border border-[var(--line)] px-5 py-3 text-sm"
+          href={`/play/world/${item.id}`}
+          className="inline-flex rounded-full bg-[var(--accent)] px-5 py-3 text-sm text-white"
         >
-          แก้ไข
+          เริ่มท่องโลก
         </Link>
-      ) : null}
+        {item.isOwner ? (
+          <Link
+            href={`/create/world?id=${item.id}`}
+            className="inline-flex rounded-full border border-[var(--line)] px-5 py-3 text-sm"
+          >
+            แก้ไข
+          </Link>
+        ) : null}
+      </div>
     </div>
   );
 }

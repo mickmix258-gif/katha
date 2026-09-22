@@ -227,7 +227,7 @@ function QuickInner() {
             value={draft.collaborators}
             onChange={(collaborators) => patch({ collaborators })}
           />
-          <SandboxStub entityName={draft.name} />
+          <SandboxStub entityName={draft.name} playHref={draft.id ? `/play/character/${draft.id}` : undefined} />
           <ActionRow>
             <SecondaryButton type="button" onClick={() => save(false)}>
               บันทึกฉบับร่าง

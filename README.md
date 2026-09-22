@@ -25,22 +25,31 @@ Open http://localhost:3000
 - Like / save / dislike / follow persisted in `localStorage` (`katha.social.v1`) until DB social graph is wired
 - Disliked works are downranked on default browse
 
-### M3 (current)
+### M3
 - Create hub `/create` → quick character, full character, world, scene editors
 - Quick create: name + prompt → heuristic draft fill; refine; save draft / publish
 - Full character: all M3 fields, scenarios (บทเปิด), hidden `systemInstruction` with owner/collaborators/nobody visibility (never shown on public detail)
 - World + scene editors with residents / NPCs / WorldCards + collaborators stub (≤5)
 - Publish flow: draft → published / pending-moderation stub; works merge into explore via `localStorage` (`katha.userWorks.v1`)
-- Sandbox preview is a non-LLM stub (M4)
 - Age gate: characters must be 18+; no underage fields
+
+### M4 (current)
+- Play routes: `/play/character/[id]`, `/play/scene/[id]`, `/play/world/[id]`, `/play/thread/[threadId]`
+- Thread store in `localStorage` (`katha.threads.v1`): messages, branches, settings, memory cards, last-read
+- Mock LLM stream adapter (`src/lib/play/llm-adapter.ts`) — swap via `setLlmAdapter` for a real provider
+- Stream UI with abort; regenerate / edit / delete / branch
+- LoreEngine + MemoryCards + slash `/reset` `/summary` `/memory` `/note` (`/image` stub)
+- Inner monologue toggle + persona selector; export markdown
+- Context assembly order per spec § E (dev context panel)
+- No group mode (M6)
 
 ## Specs
 
 - `docs/KATHA-FULL-FEATURE-SPEC-EN.md` — source of truth
-- `docs/M3_TASK_BRIEF.md` — M3 acceptance
-- `docs/M3_ACCEPTANCE_CHECKLIST.md` — checklist
+- `docs/M4_TASK_BRIEF.md` — M4 acceptance
+- `docs/M4_ACCEPTANCE_CHECKLIST.md` — checklist for Emmy
 - `src/locales/th.json` — visible Thai copy
 
 ## Out of scope (do not start here)
 
-Play-room chat / LLM stream (M4), payments, real moderation queue.
+Group rooms (M6), payments / wallet billing (M5), real moderation queue, cloud thread sync.

@@ -184,7 +184,7 @@ function WorldInner() {
         value={draft.collaborators}
         onChange={(collaborators) => patch({ collaborators })}
       />
-      <SandboxStub entityName={draft.title} />
+      <SandboxStub entityName={draft.title} playHref={draft.id ? `/play/world/${draft.id}` : undefined} />
       <ActionRow>
         <SecondaryButton type="button" onClick={() => save(false)}>
           บันทึกฉบับร่าง

@@ -86,7 +86,19 @@
     "model": "โมเดล",
     "length": "ความยาว",
     "tone": "โทน",
-    "background": "ฉากหลัง"
+    "background": "ฉากหลัง",
+    "delete": "ลบ",
+    "abort": "หยุด",
+    "unpinMemory": "เลิกปัก",
+    "innerMonologue": "บทในใจ",
+    "persona": "ตัวตน",
+    "newThread": "บทใหม่",
+    "slashHint": "คำสั่ง: /reset /summary /memory /note /image",
+    "threadsTitle": "บทของฉัน",
+    "startPlay": "เริ่มบท",
+    "continuePlay": "เล่นต่อ",
+    "multiNpc": "เล่นแบบหลายตัวละคร",
+    "roamWorld": "เริ่มท่องโลก"
   },
   "editor": {
     "name": "ชื่อ",

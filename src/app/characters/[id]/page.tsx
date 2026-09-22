@@ -165,12 +165,34 @@ export default function CharacterDetail({
           แก้ไข
         </Link>
       ) : null}
-      <Link
-        href="/create"
-        className="mt-8 inline-flex rounded-full bg-[var(--accent)] px-5 py-3 text-sm"
-      >
-        เริ่มบท · ห้องบทมาใน M4
-      </Link>
+      {item.status !== "draft" ? (
+        <Link
+          href={`/play/character/${item.id}`}
+          className="mt-8 inline-flex rounded-full bg-[var(--accent)] px-5 py-3 text-sm text-white"
+        >
+          เริ่มบท
+        </Link>
+      ) : (
+        <Link
+          href={`/play/character/${item.id}`}
+          className="mt-8 inline-flex rounded-full border border-[var(--line)] px-5 py-3 text-sm"
+        >
+          ทดลองเล่นฉบับร่าง
+        </Link>
+      )}
+      {item.scenarios && item.scenarios.some((s) => s.firstMessage || s.title) ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {item.scenarios.map((s) => (
+            <Link
+              key={s.id}
+              href={`/play/character/${item.id}?scenario=${s.id}`}
+              className="rounded-full border border-[var(--line)] px-3 py-1 text-xs text-[var(--muted)]"
+            >
+              เล่นบทเปิด: {s.title || "ไม่มีชื่อ"}
+            </Link>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -131,14 +131,30 @@ export default function SceneDetail({
         ))}
         {!item.worldCards.length ? <p className="text-sm text-[var(--muted)]">ยังไม่มีใบโลก</p> : null}
       </div>
-      {item.isOwner ? (
+      <div className="mt-8 flex flex-wrap gap-3">
         <Link
-          href={`/create/scene?id=${item.id}`}
-          className="mt-6 inline-flex rounded-full border border-[var(--line)] px-5 py-3 text-sm"
+          href={`/play/scene/${item.id}`}
+          className="inline-flex rounded-full bg-[var(--accent)] px-5 py-3 text-sm text-white"
         >
-          แก้ไข
+          เริ่มบท
         </Link>
-      ) : null}
+        {item.npcIds.length > 1 ? (
+          <Link
+            href={`/play/scene/${item.id}?mode=multi_npc`}
+            className="inline-flex rounded-full border border-[var(--line)] px-5 py-3 text-sm"
+          >
+            เล่นแบบหลายตัวละคร
+          </Link>
+        ) : null}
+        {item.isOwner ? (
+          <Link
+            href={`/create/scene?id=${item.id}`}
+            className="inline-flex rounded-full border border-[var(--line)] px-5 py-3 text-sm"
+          >
+            แก้ไข
+          </Link>
+        ) : null}
+      </div>
     </div>
   );
 }
