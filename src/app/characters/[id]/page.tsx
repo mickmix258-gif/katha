@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { FollowButton } from "@/components/follow-button";
+import { TipMoons } from "@/components/tip-moons";
 import { WorkActions } from "@/components/work-actions";
 import { getCharacter, tagLabel } from "@/data/catalog";
 import {
@@ -116,6 +117,7 @@ export default function CharacterDetail({
         </p>
       ) : null}
       <FollowButton handle={item.creatorHandle} />
+      <TipMoons handle={item.creatorHandle} displayName={item.name} />
       <WorkActions workId={item.id} baseLikes={item.likeCount} />
       <div className="mt-4 flex flex-wrap gap-2">
         {item.tags.map((tag) => (

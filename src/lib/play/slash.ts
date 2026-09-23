@@ -3,7 +3,7 @@ export type SlashResult =
   | { kind: "summary" }
   | { kind: "memory"; n: number }
   | { kind: "note"; text: string }
-  | { kind: "image" }
+  | { kind: "image"; prompt: string }
   | { kind: "unknown"; raw: string }
   | null;
 
@@ -25,7 +25,7 @@ export function parseSlash(input: string): SlashResult {
     case "note":
       return { kind: "note", text: arg || "โน้ตว่าง" };
     case "image":
-      return { kind: "image" };
+      return { kind: "image", prompt: arg };
     default:
       return { kind: "unknown", raw: trimmed };
   }

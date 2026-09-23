@@ -7,6 +7,8 @@ const links = [
   { href: "/scenes", label: th.nav.scenes },
   { href: "/worlds", label: th.nav.worlds },
   { href: "/gallery", label: th.nav.gallery },
+  { href: "/studio", label: th.nav.studio },
+  { href: "/wallet", label: th.nav.wallet },
   { href: "/me/threads", label: th.nav.threads },
 ];
 

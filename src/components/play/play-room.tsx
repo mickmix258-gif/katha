@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { ImageStudio } from "@/components/media/image-studio";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getUserCharacter, newId } from "@/lib/user-works-store";
+import { generateMockImage } from "@/lib/media/image-store";
+import { IMAGE_COST } from "@/lib/wallet-store";
 import { assembleContext } from "@/lib/play/context";
 import { downloadMarkdown, threadToMarkdown } from "@/lib/play/export-markdown";
 import { getLlmAdapter } from "@/lib/play/llm-adapter";
@@ -49,6 +52,7 @@ export function PlayRoom({ mode, entity, initialThreadId, scenarioId }: Props) {
   const [editText, setEditText] = useState("");
   const [mobileTab, setMobileTab] = useState<"chat" | "memory" | "settings">("chat");
   const [systemNotice, setSystemNotice] = useState<string | null>(null);
+  const [showImagePanel, setShowImagePanel] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const personas = useMemo(() => readPersonas(), []);
@@ -312,7 +316,28 @@ export function PlayRoom({ mode, entity, initialThreadId, scenarioId }: Props) {
       return;
     }
     if (slash.kind === "image") {
-      setSystemNotice("สร้างภาพยังเป็น stub — มาในไมล์ถัดไป");
+      const prompt =
+        slash.prompt.trim() ||
+        `ภาพของ ${entity.title}` +
+          (entity.premise ? ` — ${entity.premise.slice(0, 80)}` : "");
+      const result = generateMockImage({
+        prompt,
+        threadId: thread.id,
+        entityTitle: entity.title,
+      });
+      if (!result.ok) {
+        if (result.reason === "empty_prompt") {
+          setSystemNotice("ใส่พรอมต์หลัง /image เช่น /image แสงจันทร์ในห้องสมุด");
+        } else {
+          setSystemNotice(
+            `พระจันทร์ไม่พอ (มี ${result.balance} ต้องการ ${result.need ?? IMAGE_COST}) — รับโบนัสที่ /wallet`,
+          );
+        }
+        return;
+      }
+      setSystemNotice(
+        `สร้างภาพม็อกแล้ว (−${IMAGE_COST}) · ยอด ${result.balance} · ดูในแกลเลอรีหรือแผงภาพ`,
+      );
       return;
     }
     if (slash.kind === "unknown") {
@@ -482,6 +507,13 @@ export function PlayRoom({ mode, entity, initialThreadId, scenarioId }: Props) {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
+              onClick={() => setShowImagePanel((v) => !v)}
+              className="rounded-full border border-[var(--line)] px-3 py-1 text-xs"
+            >
+              {showImagePanel ? "ซ่อนภาพ" : "สร้างภาพ"}
+            </button>
+            <button
+              type="button"
               onClick={startFresh}
               className="rounded-full border border-[var(--line)] px-3 py-1 text-xs"
             >
@@ -611,9 +643,23 @@ export function PlayRoom({ mode, entity, initialThreadId, scenarioId }: Props) {
               <p className="border-t border-[var(--line)] px-4 py-2 text-xs text-red-300">{error}</p>
             ) : null}
 
+
+            {showImagePanel ? (
+              <div className="border-t border-[var(--line)] p-3">
+                <ImageStudio
+                  compact
+                  threadId={thread.id}
+                  entityTitle={entity.title}
+                  onGenerated={() =>
+                    setSystemNotice("แนบภาพม็อกเข้าบทนี้แล้ว — ดูในแกลเลอรีได้")
+                  }
+                />
+              </div>
+            ) : null}
+
             <div className="border-t border-[var(--line)] p-3">
               <p className="mb-2 text-[10px] text-[var(--muted)]">
-                คำสั่ง: /reset /summary /memory [N] /note … /image
+                คำสั่ง: /reset /summary /memory [N] /note … /image [พรอมต์]
               </p>
               <div className="flex gap-2">
                 <textarea
