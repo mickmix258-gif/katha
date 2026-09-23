@@ -11,7 +11,7 @@ import {
 } from "@/lib/play/group-room-store";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getUserCharacter, newId } from "@/lib/user-works-store";
-import { generateMockImage } from "@/lib/media/image-store";
+import { failMessageTh, generateImage } from "@/lib/media/image-store";
 import { IMAGE_COST } from "@/lib/wallet-store";
 import { assembleContext } from "@/lib/play/context";
 import { downloadMarkdown, threadToMarkdown } from "@/lib/play/export-markdown";
@@ -330,7 +330,8 @@ export function PlayRoom({ mode, entity, initialThreadId, scenarioId }: Props) {
         slash.prompt.trim() ||
         `ภาพของ ${entity.title}` +
           (entity.premise ? ` — ${entity.premise.slice(0, 80)}` : "");
-      const result = generateMockImage({
+      setSystemNotice("กำลังสร้างภาพจากโมเดล…");
+      const result = await generateImage({
         prompt,
         threadId: thread.id,
         entityTitle: entity.title,
@@ -339,14 +340,12 @@ export function PlayRoom({ mode, entity, initialThreadId, scenarioId }: Props) {
         if (result.reason === "empty_prompt") {
           setSystemNotice("ใส่พรอมต์หลัง /image เช่น /image แสงจันทร์ในห้องสมุด");
         } else {
-          setSystemNotice(
-            `พระจันทร์ไม่พอ (มี ${result.balance} ต้องการ ${result.need ?? IMAGE_COST}) — รับโบนัสที่ /wallet`,
-          );
+          setSystemNotice(failMessageTh(result));
         }
         return;
       }
       setSystemNotice(
-        `สร้างภาพม็อกแล้ว (−${IMAGE_COST}) · ยอด ${result.balance} · ดูในแกลเลอรีหรือแผงภาพ`,
+        `จากโมเดลจริง (−${IMAGE_COST}) · ยอด ${result.balance} · ดูในแกลเลอรีหรือแผงภาพ`,
       );
       return;
     }

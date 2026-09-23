@@ -102,7 +102,7 @@ export default function GalleryPage() {
         <p className="mt-10 text-[var(--muted)]">
           ยังไม่มีภาพในตัวกรองนี้ —{" "}
           <Link href="/studio/images" className="text-[var(--accent-2)]">
-            สร้างภาพม็อก
+            สร้างภาพ
           </Link>
         </p>
       ) : (
@@ -122,7 +122,7 @@ export default function GalleryPage() {
                 <p className="line-clamp-2 text-sm">{img.prompt}</p>
                 <p className="mt-2 text-[10px] text-[var(--muted)]">
                   {styleLabel(img.styleId)} · {img.rating === "mature" ? "ผู้ใหญ่" : "ทั่วไป"} ·{" "}
-                  {img.source === "generated" ? "สร้างเอง" : "ซีด"}
+                  {img.source === "generated" ? (img.fromModel ? "จากโมเดลจริง" : "สร้างเอง") : "ซีด (placeholder)"}
                   {img.costMoons ? ` · −${img.costMoons}` : ""}
                   {img.entityTitle ? ` · ${img.entityTitle}` : ""}
                 </p>

@@ -2,7 +2,7 @@
 
 import { characters } from "@/data/catalog";
 import { newId } from "@/lib/user-works-store";
-import { IMAGE_COST, spendMoons } from "@/lib/wallet-store";
+import { IMAGE_COST, readWallet, spendMoons } from "@/lib/wallet-store";
 import { hashString, renderMockImage, type StylePresetId } from "./mock-image";
 
 export type GalleryImage = {
@@ -10,6 +10,7 @@ export type GalleryImage = {
   prompt: string;
   styleId: string;
   rating: "safe" | "mature";
+  /** HTTPS URL from fal or SVG data URL (seed placeholders). */
   dataUrl: string;
   seed: number;
   source: "generated" | "seed";
@@ -17,6 +18,9 @@ export type GalleryImage = {
   threadId?: string;
   entityTitle?: string;
   costMoons: number;
+  /** Present when generated via real fal model. */
+  model?: string;
+  fromModel?: boolean;
 };
 
 const KEY = "katha.images.v1";
@@ -87,40 +91,129 @@ export function listGallery(opts?: { rating?: "all" | "safe" | "mature" }): Gall
   return all.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+export type GenerateFailReason =
+  | "insufficient"
+  | "empty_prompt"
+  | "no_provider"
+  | "provider_error"
+  | "timeout"
+  | "safe_mode"
+  | "bad_request";
+
 export type GenerateResult =
   | { ok: true; image: GalleryImage; balance: number }
-  | { ok: false; reason: "insufficient" | "empty_prompt"; balance: number; need?: number };
+  | {
+      ok: false;
+      reason: GenerateFailReason;
+      balance: number;
+      need?: number;
+      messageTh?: string;
+    };
 
-export function generateMockImage(input: {
+type ApiOk = {
+  ok: true;
+  imageUrl?: string;
+  dataUrl?: string;
+  seed?: number;
+  model?: string;
+};
+
+type ApiFail = {
+  ok: false;
+  reason?: GenerateFailReason;
+  messageTh?: string;
+};
+
+/**
+ * Real model generation via `/api/images/generate` (fal.ai).
+ * Checks balance first; deducts IMAGE_COST moons only after a successful response.
+ * Never falls back to SVG mock on missing key / provider failure.
+ */
+export async function generateImage(input: {
   prompt: string;
   styleId?: string;
   rating?: "safe" | "mature";
   threadId?: string;
   entityTitle?: string;
-}): GenerateResult {
+}): Promise<GenerateResult> {
   const prompt = input.prompt.trim();
-  if (!prompt) return { ok: false, reason: "empty_prompt", balance: 0 };
-  const spend = spendMoons(IMAGE_COST, "image_spend", "สร้างภาพม็อก", {
+  const balance = readWallet().balance;
+  if (!prompt) return { ok: false, reason: "empty_prompt", balance };
+
+  if (balance < IMAGE_COST) {
+    return { ok: false, reason: "insufficient", balance, need: IMAGE_COST };
+  }
+
+  let api: ApiOk | ApiFail;
+  try {
+    const res = await fetch("/api/images/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt,
+        styleId: input.styleId ?? "ink",
+        rating: input.rating ?? "safe",
+      }),
+    });
+    api = (await res.json()) as ApiOk | ApiFail;
+  } catch {
+    return {
+      ok: false,
+      reason: "provider_error",
+      balance: readWallet().balance,
+      messageTh: "สร้างภาพไม่สำเร็จ — เชื่อมต่อเซิร์ฟเวอร์ไม่ได้",
+    };
+  }
+
+  if (!api.ok) {
+    return {
+      ok: false,
+      reason: api.reason ?? "provider_error",
+      balance: readWallet().balance,
+      messageTh: api.messageTh,
+    };
+  }
+
+  const imageUrl = api.imageUrl || api.dataUrl;
+  if (!imageUrl) {
+    return {
+      ok: false,
+      reason: "provider_error",
+      balance: readWallet().balance,
+      messageTh: "สร้างภาพไม่สำเร็จ — ไม่ได้รับรูปจากโมเดล",
+    };
+  }
+
+  // Charge only after successful generation.
+  const spend = spendMoons(IMAGE_COST, "image_spend", "สร้างภาพ", {
     prompt: prompt.slice(0, 80),
+    model: api.model ?? "",
   });
   if (!spend.ok) {
     return { ok: false, reason: "insufficient", balance: spend.balance, need: IMAGE_COST };
   }
+
   const styleId = input.styleId ?? "ink";
   const rating = input.rating ?? "safe";
-  const seed = hashString(`${prompt}|${styleId}|${Date.now().toString(36)}`);
+  const seed =
+    typeof api.seed === "number"
+      ? api.seed
+      : hashString(`${prompt}|${styleId}|${Date.now().toString(36)}`);
+
   const image: GalleryImage = {
     id: newId("img"),
     prompt,
     styleId,
     rating,
-    dataUrl: renderMockImage({ prompt, styleId, seed, rating }),
+    dataUrl: imageUrl,
     seed,
     source: "generated",
     createdAt: new Date().toISOString(),
     threadId: input.threadId,
     entityTitle: input.entityTitle,
     costMoons: IMAGE_COST,
+    model: api.model,
+    fromModel: true,
   };
   const state = readImages();
   state.images.unshift(image);
@@ -128,10 +221,31 @@ export function generateMockImage(input: {
   return { ok: true, image, balance: spend.balance };
 }
 
+/** @deprecated Use generateImage — kept name for any leftover imports during transition. */
+export const generateMockImage = generateImage;
+
 export function attachImageToThread(imageId: string, threadId: string) {
   const state = readImages();
   const idx = state.images.findIndex((i) => i.id === imageId);
   if (idx < 0) return;
   state.images[idx] = { ...state.images[idx], threadId };
   writeImages(state);
+}
+
+export function failMessageTh(result: Extract<GenerateResult, { ok: false }>): string {
+  if (result.messageTh) return result.messageTh;
+  switch (result.reason) {
+    case "empty_prompt":
+      return "ใส่พรอมต์ก่อนสร้างภาพ";
+    case "insufficient":
+      return `พระจันทร์ไม่พอ (มี ${result.balance} ต้องการ ${result.need ?? IMAGE_COST}) — รับโบนัสที่กระเป๋า`;
+    case "no_provider":
+      return "ยังไม่ได้ตั้งค่าผู้ให้บริการสร้างภาพ (FAL_KEY) — ติดต่อผู้ดูแลระบบ";
+    case "timeout":
+      return "หมดเวลาสร้างภาพ — ลองใหม่";
+    case "safe_mode":
+      return "ถูกบล็อกโดยโหมดปลอดภัยของโมเดล — ลองปรับพรอมต์หรือเรตติ้ง";
+    default:
+      return "สร้างภาพไม่สำเร็จ — ผู้ให้บริการผิดพลาด ลองใหม่ภายหลัง";
+  }
 }

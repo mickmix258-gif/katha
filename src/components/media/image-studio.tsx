@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { generateMockImage, listImagesForThread } from "@/lib/media/image-store";
+import {
+  failMessageTh,
+  generateImage,
+  listImagesForThread,
+} from "@/lib/media/image-store";
 import { STYLE_PRESETS, type StylePresetId } from "@/lib/media/mock-image";
 import { IMAGE_COST, readWallet } from "@/lib/wallet-store";
 
@@ -21,6 +25,7 @@ export function ImageStudio({ threadId, entityTitle, compact, onGenerated }: Pro
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [successNote, setSuccessNote] = useState<string | null>(null);
   const [threadThumbs, setThreadThumbs] = useState<
     { id: string; dataUrl: string; prompt: string }[]
   >([]);
@@ -52,11 +57,12 @@ export function ImageStudio({ threadId, entityTitle, compact, onGenerated }: Pro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId]);
 
-  const onGenerate = () => {
+  const onGenerate = async () => {
     setError(null);
+    setSuccessNote(null);
     setBusy(true);
     try {
-      const result = generateMockImage({
+      const result = await generateImage({
         prompt,
         styleId,
         rating,
@@ -64,19 +70,20 @@ export function ImageStudio({ threadId, entityTitle, compact, onGenerated }: Pro
         entityTitle,
       });
       if (!result.ok) {
-        if (result.reason === "empty_prompt") {
-          setError("ใส่พรอมต์ก่อนสร้างภาพ");
-        } else {
-          setError(
-            `พระจันทร์ไม่พอ (มี ${result.balance} ต้องการ ${result.need ?? IMAGE_COST}) — รับโบนัสที่กระเป๋า`,
-          );
-        }
+        setError(failMessageTh(result));
         return;
       }
       setBalance(result.balance);
       setPreview(result.image.dataUrl);
+      setSuccessNote(
+        result.image.fromModel
+          ? `จากโมเดลจริง${result.image.model ? ` · ${result.image.model}` : ""} · −${IMAGE_COST}`
+          : `สร้างภาพแล้ว · −${IMAGE_COST}`,
+      );
       onGenerated?.(result.image.id);
       refresh();
+    } catch {
+      setError("สร้างภาพไม่สำเร็จ — ลองใหม่ภายหลัง");
     } finally {
       setBusy(false);
     }
@@ -89,7 +96,7 @@ export function ImageStudio({ threadId, entityTitle, compact, onGenerated }: Pro
       }`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className={compact ? "text-sm font-medium" : "text-xl"}>สร้างภาพม็อก</h2>
+        <h2 className={compact ? "text-sm font-medium" : "text-xl"}>สร้างภาพ</h2>
         <p className="text-xs text-[var(--muted)]">
           ราคา {IMAGE_COST} · ยอด {balance} ·{" "}
           <Link href="/wallet" className="text-[var(--accent-2)]">
@@ -144,17 +151,20 @@ export function ImageStudio({ threadId, entityTitle, compact, onGenerated }: Pro
       <button
         type="button"
         disabled={busy}
-        onClick={onGenerate}
+        onClick={() => void onGenerate()}
         className="mt-4 rounded-full bg-[var(--accent)] px-5 py-2 text-sm text-white disabled:opacity-50"
       >
         {busy ? "กำลังสร้าง…" : `สร้างภาพ (−${IMAGE_COST})`}
       </button>
       {error ? <p className="mt-2 text-xs text-red-300">{error}</p> : null}
+      {successNote ? (
+        <p className="mt-2 text-xs text-[var(--accent-2)]">{successNote}</p>
+      ) : null}
       {preview ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={preview}
-          alt="ภาพม็อกล่าสุด"
+          alt="ภาพล่าสุดจากโมเดล"
           className="mt-4 max-h-80 w-full rounded-xl border border-[var(--line)] object-contain"
         />
       ) : null}
@@ -177,7 +187,7 @@ export function ImageStudio({ threadId, entityTitle, compact, onGenerated }: Pro
       ) : null}
       {!compact ? (
         <p className="mt-3 text-xs text-[var(--muted)]">
-          ภาพม็อกเป็น SVG ในเครื่อง — ไม่เรียก GPU จริง · ดูทั้งหมดที่{" "}
+          สร้างด้วยโมเดลจริงผ่านเซิร์ฟเวอร์ (fal.ai) · หักพระจันทร์เมื่อสำเร็จเท่านั้น · ดูทั้งหมดที่{" "}
           <Link href="/gallery" className="text-[var(--accent-2)]">
             แกลเลอรี
           </Link>
