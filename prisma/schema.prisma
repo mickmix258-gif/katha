@@ -7,57 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Visibility {
-  public
-  unlisted
-  private
-}
-
-enum Rating {
-  safe
-  mature
-}
-
-enum ThreadMode {
-  character
-  scene
-  world
-  group
-  multi_npc
-}
-
-enum Plan {
-  free
-  plus
-  admin
-}
-
-enum MessageRole {
-  user
-  assistant
-  system
-}
-
-enum TxType {
-  grant
-  spend_chat
-  spend_image
-  creator_share
-  bonus
-  donate
-}
-
-enum NsfwIntensity {
-  off
-  suggestive
-  explicit
-}
-
-enum ContentMode {
-  all
-  safe_only
-}
-
 model User {
   id              String    @id @default(cuid())
   handle          String    @unique
@@ -65,9 +14,9 @@ model User {
   bio             String?
   avatarUrl       String?
   locale          String    @default("th-TH")
-  plan            Plan      @default(free)
+  plan            String    @default("free")
   ageVerifiedAt   DateTime?
-  contentMode     ContentMode @default(all)
+  contentMode     String    @default("all")
   nsfwDefaultOn   Boolean   @default(true)
   moons           Int       @default(30)
   bannedAt        DateTime?
@@ -82,9 +31,9 @@ model User {
   comments        Comment[]
   notifications   Notification[]
   collaborations  Collaboration[]
-  socialEdges     SocialEdge[]
   reports         Report[]  @relation("Reporter")
   threadMembers   ThreadMember[]
+  socialEdges     SocialEdge[]
 }
 
 model Tag {
@@ -115,9 +64,9 @@ model Character {
   galleryUrls        String        @default("[]")
   genderPresentation String        @default("unspecified")
   innerMonologueDefault Boolean    @default(false)
-  nsfwIntensity      NsfwIntensity @default(off)
-  rating             Rating        @default(safe)
-  visibility         Visibility    @default(private)
+  nsfwIntensity      String        @default("off")
+  rating             String        @default("safe")
+  visibility         String        @default("private")
   customHashtags     String        @default("[]")
   publishedAt        DateTime?
   chatCount          Int           @default(0)
@@ -140,7 +89,7 @@ model Scenario {
   prompt       String
   firstMessage String
   tags         String   @default("[]")
-  rating       Rating   @default(safe)
+  rating       String   @default("safe")
   character    Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 }
 
@@ -153,8 +102,8 @@ model World {
   tone        String
   lore        String
   coverUrl    String?
-  rating      Rating      @default(safe)
-  visibility  Visibility  @default(private)
+  rating      String      @default("safe")
+  visibility  String      @default("private")
   customHashtags String   @default("[]")
   featured    Boolean     @default(false)
   playCount   Int         @default(0)
@@ -187,8 +136,8 @@ model Scene {
   playerRole       String
   rulesForAi       String
   pov              String      @default("second")
-  rating           Rating      @default(safe)
-  visibility       Visibility  @default(private)
+  rating           String      @default("safe")
+  visibility       String      @default("private")
   featured         Boolean     @default(false)
   publishedAt      DateTime?
   playCount        Int         @default(0)
@@ -238,7 +187,7 @@ model Persona {
 model Thread {
   id             String       @id @default(cuid())
   userId         String
-  mode           ThreadMode
+  mode           String
   characterId    String?
   sceneId        String?
   worldId        String?
@@ -270,7 +219,7 @@ model ThreadMember {
 model Message {
   id            String      @id @default(cuid())
   threadId      String
-  role          MessageRole
+  role          String
   content       String
   parentId      String?
   isRegenerated Boolean     @default(false)
@@ -292,7 +241,7 @@ model MemoryCard {
 model Transaction {
   id        String   @id @default(cuid())
   userId    String
-  type      TxType
+  type      String
   amount    Int
   refType   String?
   refId     String?
