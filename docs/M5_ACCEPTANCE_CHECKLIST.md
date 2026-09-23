@@ -2,7 +2,7 @@
 
 Source: `docs/M5_TASK_BRIEF.md` + `docs/KATHA-FULL-FEATURE-SPEC-EN.md` §F / §G / §8 M5  
 Baseline M4: `e55ac91911f1473a405f3b84e2bfd22a631293a8` (PASS)  
-M5 commit: _(fill after push — see git log)_  
+M5 commit: `ae9ecb921790b05f081f47b7322a9e4380683453`  
 Verified: _(pending)_
 
 ## Gate
