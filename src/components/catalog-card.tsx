@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { tagLabel } from "@/data/catalog";
+import { renderCoverPortrait } from "@/lib/media/mock-image";
 
 type CardProps = {
+  id: string;
   href: string;
   title: string;
   subtitle: string;
@@ -10,15 +12,26 @@ type CardProps = {
   meta: string;
 };
 
-export function CatalogCard({ href, title, subtitle, tags, rating, meta }: CardProps) {
+export function CatalogCard({ id, href, title, subtitle, tags, rating, meta }: CardProps) {
+  const cover = renderCoverPortrait({
+    id,
+    title,
+    subtitle,
+    rating,
+    tags,
+  });
+
   return (
     <Link
       href={href}
       className="block overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-4 transition hover:-translate-y-0.5 hover:border-[var(--accent)]"
     >
-      <div className="mb-4 flex h-36 items-end rounded-xl bg-gradient-to-br from-[#3a221c] to-[#120e0c] p-3 text-xs text-[var(--accent-2)]">
-        {rating === "mature" ? "ผู้ใหญ่" : "ทั่วไป"}
-      </div>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={cover}
+        alt={title}
+        className="mb-4 h-36 w-full rounded-xl object-cover"
+      />
       <h3 className="text-lg leading-snug">{title}</h3>
       <p className="mt-2 line-clamp-2 text-sm text-[var(--muted)]">{subtitle}</p>
       <div className="mt-3 flex flex-wrap gap-2">

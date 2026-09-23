@@ -161,6 +161,7 @@ function BrowserInner({ title, subtitle, characters = [], scenes = [], worlds = 
       <div className="card-grid mt-8">
         {filteredCharacters.map((item) => (
           <CatalogCard
+              id={item.id}
             key={item.id}
             href={`/characters/${item.id}`}
             title={item.name}
@@ -172,6 +173,7 @@ function BrowserInner({ title, subtitle, characters = [], scenes = [], worlds = 
         ))}
         {filteredScenes.map((item) => (
           <CatalogCard
+              id={item.id}
             key={item.id}
             href={`/scenes/${item.id}`}
             title={item.title}
@@ -183,6 +185,7 @@ function BrowserInner({ title, subtitle, characters = [], scenes = [], worlds = 
         ))}
         {filteredWorlds.map((item) => (
           <CatalogCard
+              id={item.id}
             key={item.id}
             href={`/worlds/${item.id}`}
             title={item.title}

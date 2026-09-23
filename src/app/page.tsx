@@ -62,6 +62,7 @@ export default function HomePage() {
         <div className="card-grid">
           {featuredCharacters.map((item) => (
             <CatalogCard
+              id={item.id}
               key={item.id}
               href={`/characters/${item.id}`}
               title={item.name}
@@ -82,6 +83,7 @@ export default function HomePage() {
         <div className="card-grid">
           {featuredScenes.map((item) => (
             <CatalogCard
+              id={item.id}
               key={item.id}
               href={`/scenes/${item.id}`}
               title={item.title}
@@ -102,6 +104,7 @@ export default function HomePage() {
         <div className="card-grid">
           {featuredWorlds.map((item) => (
             <CatalogCard
+              id={item.id}
               key={item.id}
               href={`/worlds/${item.id}`}
               title={item.title}
