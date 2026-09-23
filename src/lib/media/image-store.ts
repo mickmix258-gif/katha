@@ -96,6 +96,10 @@ export type GenerateFailReason =
   | "empty_prompt"
   | "no_provider"
   | "provider_error"
+  | "provider_auth"
+  | "provider_forbidden"
+  | "bad_input"
+  | "rate_limited"
   | "timeout"
   | "safe_mode"
   | "bad_request";
@@ -241,6 +245,14 @@ export function failMessageTh(result: Extract<GenerateResult, { ok: false }>): s
       return `พระจันทร์ไม่พอ (มี ${result.balance} ต้องการ ${result.need ?? IMAGE_COST}) — รับโบนัสที่กระเป๋า`;
     case "no_provider":
       return "ยังไม่ได้ตั้งค่าผู้ให้บริการสร้างภาพ (FAL_KEY) — ติดต่อผู้ดูแลระบบ";
+    case "provider_auth":
+      return "คีย์ผู้ให้บริการไม่ถูกต้องหรือหมดอายุ — ติดต่อผู้ดูแลระบบ";
+    case "provider_forbidden":
+      return "ผู้ให้บริการปฏิเสธคำขอ — บัญชีอาจไม่มีสิทธิ์";
+    case "bad_input":
+      return "พารามิเตอร์สร้างภาพไม่ถูกต้อง — ลองปรับพรอมต์";
+    case "rate_limited":
+      return "เรียกผู้ให้บริการถี่เกินไป — รอสักครู่แล้วลองใหม่";
     case "timeout":
       return "หมดเวลาสร้างภาพ — ลองใหม่";
     case "safe_mode":
