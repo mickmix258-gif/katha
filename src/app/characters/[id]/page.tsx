@@ -5,6 +5,7 @@ import { use, useEffect, useState } from "react";
 import { FollowButton } from "@/components/follow-button";
 import { TipMoons } from "@/components/tip-moons";
 import { WorkActions } from "@/components/work-actions";
+import { ReportButton } from "@/components/moderation/report-button";
 import { getCharacter, tagLabel } from "@/data/catalog";
 import {
   getUserCharacter,
@@ -43,7 +44,7 @@ export default function CharacterDetail({
       return;
     }
     const user = getUserCharacter(id);
-    if (user && (user.status === "published" || user.status === "pending_moderation" || user.status === "draft")) {
+    if (user && (user.status === "published" || user.status === "pending_moderation" || user.status === "draft" || user.status === "declined" || user.status === "declined")) {
       // drafts only visible to owner (local); show for local creator
       if (user.status === "draft") {
         setItem({
@@ -111,6 +112,11 @@ export default function CharacterDetail({
           สถานะ: รอตรวจ (stub) — ยังแสดงในแค็ตตาล็อกได้
         </p>
       ) : null}
+      {item.status === "declined" ? (
+        <p className="mt-3 rounded-xl border border-[var(--accent)]/50 bg-[var(--paper)] px-3 py-2 text-sm text-[var(--accent-2)]">
+          สถานะ: ไม่ผ่านการตรวจ — ดูรายละเอียดที่สตูดิโอ → คิวตรวจ
+        </p>
+      ) : null}
       {item.status === "draft" ? (
         <p className="mt-3 rounded-xl border border-[var(--line)] px-3 py-2 text-sm text-[var(--muted)]">
           ฉบับร่าง · ยังไม่เผยแพร่สาธารณะ
@@ -119,6 +125,14 @@ export default function CharacterDetail({
       <FollowButton handle={item.creatorHandle} />
       <TipMoons handle={item.creatorHandle} displayName={item.name} />
       <WorkActions workId={item.id} baseLikes={item.likeCount} />
+      <div className="mt-3">
+        <ReportButton
+          targetType="character"
+          targetId={item.id}
+          targetTitle={item.name}
+          creatorHandle={item.creatorHandle}
+        />
+      </div>
       <div className="mt-4 flex flex-wrap gap-2">
         {item.tags.map((tag) => (
           <Link
@@ -167,21 +181,29 @@ export default function CharacterDetail({
           แก้ไข
         </Link>
       ) : null}
-      {item.status !== "draft" ? (
+      <div className="mt-8 flex flex-wrap gap-3">
+        {item.status !== "draft" ? (
+          <Link
+            href={`/play/character/${item.id}`}
+            className="inline-flex rounded-full bg-[var(--accent)] px-5 py-3 text-sm text-white"
+          >
+            เริ่มบท
+          </Link>
+        ) : (
+          <Link
+            href={`/play/character/${item.id}`}
+            className="inline-flex rounded-full border border-[var(--line)] px-5 py-3 text-sm"
+          >
+            ทดลองเล่นฉบับร่าง
+          </Link>
+        )}
         <Link
-          href={`/play/character/${item.id}`}
-          className="mt-8 inline-flex rounded-full bg-[var(--accent)] px-5 py-3 text-sm text-white"
+          href={`/play/group?kind=character&id=${item.id}`}
+          className="inline-flex rounded-full border border-[var(--line)] px-5 py-3 text-sm"
         >
-          เริ่มบท
+          ห้องกลุ่ม
         </Link>
-      ) : (
-        <Link
-          href={`/play/character/${item.id}`}
-          className="mt-8 inline-flex rounded-full border border-[var(--line)] px-5 py-3 text-sm"
-        >
-          ทดลองเล่นฉบับร่าง
-        </Link>
-      )}
+      </div>
       {item.scenarios && item.scenarios.some((s) => s.firstMessage || s.title) ? (
         <div className="mt-4 flex flex-wrap gap-2">
           {item.scenarios.map((s) => (

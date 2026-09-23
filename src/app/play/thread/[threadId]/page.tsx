@@ -22,6 +22,10 @@ export default function PlayThreadPage({
       setThread(null);
       return;
     }
+    if (t.mode === "group") {
+      window.location.replace(`/room/${threadId}`);
+      return;
+    }
     setThread(t);
     const mode = t.mode === "multi_npc" ? "scene" : t.mode;
     const resolved =

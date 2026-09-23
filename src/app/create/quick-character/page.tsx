@@ -31,6 +31,7 @@ import {
   type UserCharacter,
   upsertCharacter,
 } from "@/lib/user-works-store";
+import { enqueueModerationJob } from "@/lib/moderation-store";
 
 function blank(id?: string): UserCharacter {
   const now = new Date().toISOString();
@@ -125,8 +126,18 @@ function QuickInner() {
       next.status = "draft";
     }
     upsertCharacter(next);
+    if (publish && next.visibility === "public") {
+      enqueueModerationJob({
+        targetType: "character",
+        targetId: next.id,
+        targetTitle: next.name,
+        creatorHandle: next.creatorHandle,
+        body: [next.description, next.personality, next.greeting, next.systemInstruction].join("\n"),
+        rating: next.rating,
+      });
+    }
     setDraft(next);
-    setMsg(publish ? "เผยแพร่แล้ว — ดูได้ในสำรวจ/ตัวละคร" : "บันทึกฉบับร่างแล้ว");
+    setMsg(publish ? "เผยแพร่แล้ว · ส่งเข้าคิวตรวจ (stub)" : "บันทึกฉบับร่างแล้ว");
     if (publish) router.push(`/characters/${next.id}`);
   };
 

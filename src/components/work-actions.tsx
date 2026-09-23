@@ -7,6 +7,7 @@ import {
   toggleLike,
   toggleSave,
 } from "@/lib/interaction-store";
+import { pushNotification } from "@/lib/notification-store";
 
 export function WorkActions({
   workId,
@@ -49,8 +50,16 @@ export function WorkActions({
       <button
         type="button"
         onClick={() => {
-          toggleLike(workId);
+          const on = toggleLike(workId);
           refresh();
+          if (on) {
+            pushNotification({
+              type: "like",
+              title: "ถูกใจผลงาน",
+              body: `คุณถูกใจผลงาน ${workId}`,
+              payload: { workId },
+            });
+          }
         }}
         className={`rounded-full px-4 py-2 text-sm ${liked ? "bg-[var(--accent)] text-black" : "border border-[var(--line)]"}`}
       >

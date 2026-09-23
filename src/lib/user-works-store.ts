@@ -2,7 +2,7 @@
 
 import type { Intensity, Rating } from "@/data/catalog";
 
-export type PublishStatus = "draft" | "published" | "pending_moderation";
+export type PublishStatus = "draft" | "published" | "pending_moderation" | "declined";
 export type WorkVisibility = "public" | "unlisted" | "private";
 export type PromptVisibility = "owner" | "collaborators" | "nobody";
 export type CollaboratorRole = "owner" | "editor" | "credited";

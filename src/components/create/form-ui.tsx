@@ -86,7 +86,9 @@ export function StatusBanner({
       ? "ฉบับร่าง"
       : status === "pending_moderation"
         ? "เผยแพร่แล้ว · รอตรวจ (stub)"
-        : "เผยแพร่แล้ว";
+        : status === "declined"
+          ? "ไม่ผ่านการตรวจ"
+          : "เผยแพร่แล้ว";
   return (
     <p className="rounded-xl border border-[var(--line)] bg-[var(--paper-2)] px-3 py-2 text-sm text-[var(--muted)]">
       สถานะ: <span className="text-[var(--accent-2)]">{label}</span>

@@ -20,7 +20,8 @@
     "wallet": "กระเป๋า",
     "threads": "บทของฉัน",
     "notifications": "การแจ้งเตือน",
-    "settings": "ตั้งค่า"
+    "settings": "ตั้งค่า",
+    "group": "กลุ่ม"
   },
   "actions": {
     "startPlay": "เริ่มบท",
@@ -98,7 +99,9 @@
     "startPlay": "เริ่มบท",
     "continuePlay": "เล่นต่อ",
     "multiNpc": "เล่นแบบหลายตัวละคร",
-    "roamWorld": "เริ่มท่องโลก"
+    "roamWorld": "เริ่มท่องโลก",
+    "groupRoom": "ห้องกลุ่ม",
+    "groupLobby": "ล็อบบี้กลุ่ม"
   },
   "editor": {
     "name": "ชื่อ",
@@ -147,7 +150,9 @@
     "pending": "รอตรวจ",
     "approved": "ผ่าน",
     "declined": "ไม่ผ่าน",
-    "needsReview": "ต้องตรวจมือ"
+    "needsReview": "ต้องตรวจมือ",
+    "queue": "คิวตรวจ",
+    "report": "รายงาน"
   },
   "legal": {
     "ageGate": "เนื้อหาผู้ใหญ่ สำหรับอายุ 18 ปีขึ้นไป",

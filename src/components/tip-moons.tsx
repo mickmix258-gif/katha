@@ -6,6 +6,7 @@ import {
   readWallet,
   tipCreator,
 } from "@/lib/wallet-store";
+import { pushNotification } from "@/lib/notification-store";
 
 export function TipMoons({
   handle,
@@ -53,6 +54,20 @@ export function TipMoons({
     setMsg(
       `ส่ง ${resolved} พระจันทร์ให้ @${handle}${displayName ? ` (${displayName})` : ""} แล้ว`,
     );
+    pushNotification({
+      type: "tip",
+      title: `ส่ง ${resolved} พระจันทร์`,
+      body: `ถึง @${handle}${displayName ? ` (${displayName})` : ""}`,
+      href: `/c/${handle}`,
+      payload: { handle, amount: resolved },
+    });
+    pushNotification({
+      type: "creator_share",
+      title: "ส่วนแบ่งครีเอเตอร์ (stub)",
+      body: `ได้รับทิป ${resolved} พระจันทร์จากผู้เล่น`,
+      href: "/studio/earnings",
+      payload: { handle, amount: resolved },
+    });
     setCustom("");
   };
 

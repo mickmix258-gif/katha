@@ -4,6 +4,7 @@ import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { FollowButton } from "@/components/follow-button";
 import { WorkActions } from "@/components/work-actions";
+import { ReportButton } from "@/components/moderation/report-button";
 import { getCharacter, getScene, getWorld, tagLabel } from "@/data/catalog";
 import {
   getUserCharacter,
@@ -97,8 +98,21 @@ export default function SceneDetail({
           สถานะ: รอตรวจ (stub)
         </p>
       ) : null}
+      {item.status === "declined" ? (
+        <p className="mt-3 rounded-xl border border-[var(--accent)]/50 bg-[var(--paper)] px-3 py-2 text-sm text-[var(--accent-2)]">
+          สถานะ: ไม่ผ่านการตรวจ — ดูที่สตูดิโอ → คิวตรวจ
+        </p>
+      ) : null}
       <FollowButton handle={item.creatorHandle} />
       <WorkActions workId={item.id} baseLikes={item.likeCount ?? 0} />
+      <div className="mt-3">
+        <ReportButton
+          targetType="scene"
+          targetId={item.id}
+          targetTitle={item.title}
+          creatorHandle={item.creatorHandle}
+        />
+      </div>
       <p className="mt-3 text-[var(--muted)]">{item.premise}</p>
       <div className="mt-4 flex flex-wrap gap-2">
         {item.tags.map((tag) => (
@@ -137,6 +151,12 @@ export default function SceneDetail({
           className="inline-flex rounded-full bg-[var(--accent)] px-5 py-3 text-sm text-white"
         >
           เริ่มบท
+        </Link>
+        <Link
+          href={`/play/group?kind=scene&id=${item.id}`}
+          className="inline-flex rounded-full border border-[var(--line)] px-5 py-3 text-sm"
+        >
+          ห้องกลุ่ม
         </Link>
         {item.npcIds.length > 1 ? (
           <Link

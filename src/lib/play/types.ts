@@ -1,4 +1,4 @@
-export type PlayMode = "character" | "scene" | "world" | "multi_npc";
+export type PlayMode = "character" | "scene" | "world" | "multi_npc" | "group";
 
 export type MessageRole = "user" | "assistant" | "system" | "narrator";
 
@@ -70,6 +70,9 @@ export type PlayThread = {
   createdAt: string;
   updatedAt: string;
   scenarioId?: string;
+  /** When mode=group — link to localStorage group room */
+  groupRoomId?: string;
+  groupEntityKind?: "character" | "scene";
 };
 
 export type LoreCard = {

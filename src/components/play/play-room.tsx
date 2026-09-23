@@ -2,6 +2,13 @@
 
 import Link from "next/link";
 import { ImageStudio } from "@/components/media/image-studio";
+import { GroupSeatsPanel } from "@/components/group/group-seats-panel";
+import {
+  advanceTurn,
+  allMembersInnerOptIn,
+  createGroupRoom,
+  getGroupRoom,
+} from "@/lib/play/group-room-store";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getUserCharacter, newId } from "@/lib/user-works-store";
 import { generateMockImage } from "@/lib/media/image-store";
@@ -261,6 +268,9 @@ export function PlayRoom({ mode, entity, initialThreadId, scenarioId }: Props) {
     });
     setDraft("");
     await runAssistant(next, msgs, text);
+    if (mode === "group" && next.groupRoomId) {
+      advanceTurn(next.groupRoomId);
+    }
   };
 
   const handleSlash = async (
@@ -419,6 +429,21 @@ export function PlayRoom({ mode, entity, initialThreadId, scenarioId }: Props) {
     if (streaming) abortStream();
     const openingContent =
       entity.openingNarration || entity.greeting || `เริ่มบทกับ ${entity.title}`;
+    if (mode === "group") {
+      const kind = thread?.groupEntityKind ?? "character";
+      const { room, thread: created } = createGroupRoom({
+        entityKind: kind,
+        entityId: entity.id,
+        entityTitle: entity.title,
+        opening: {
+          role: entity.openingNarration ? "narrator" : "assistant",
+          content: openingContent,
+        },
+      });
+      window.location.assign(`/room/${room.threadId}`);
+      setThread(created);
+      return;
+    }
     const created = createThread({
       mode,
       entityId: entity.id,
@@ -449,7 +474,17 @@ export function PlayRoom({ mode, entity, initialThreadId, scenarioId }: Props) {
       ? `/characters/${entity.id}`
       : mode === "world"
         ? `/worlds/${entity.id}`
-        : `/scenes/${entity.id}`;
+        : mode === "group"
+          ? thread.groupEntityKind === "scene"
+            ? `/scenes/${entity.id}`
+            : `/characters/${entity.id}`
+          : `/scenes/${entity.id}`;
+
+  const groupRoom =
+    mode === "group" && thread.groupRoomId
+      ? getGroupRoom(thread.groupRoomId)
+      : undefined;
+  const groupInnerAllowed = groupRoom ? allMembersInnerOptIn(groupRoom) : true;
 
   return (
     <div className="mx-auto flex min-h-[calc(100vh-8rem)] max-w-7xl flex-col gap-3 px-3 py-4 lg:flex-row">
@@ -478,6 +513,12 @@ export function PlayRoom({ mode, entity, initialThreadId, scenarioId }: Props) {
             </p>
           ) : null}
         </div>
+        {mode === "group" && thread.groupRoomId ? (
+          <GroupSeatsPanel
+            roomId={thread.groupRoomId}
+            onChange={() => setThread(getThread(thread.id) ?? thread)}
+          />
+        ) : null}
         <button
           type="button"
           onClick={() => setShowDebug((v) => !v)}
@@ -715,6 +756,14 @@ export function PlayRoom({ mode, entity, initialThreadId, scenarioId }: Props) {
           />
         </div>
         <div className={`border-t border-[var(--line)] p-4 lg:hidden ${mobileTab === "settings" ? "" : "hidden"}`}>
+          {mode === "group" && thread.groupRoomId ? (
+            <div className="mb-3">
+              <GroupSeatsPanel
+                roomId={thread.groupRoomId}
+                onChange={() => setThread(getThread(thread.id) ?? thread)}
+              />
+            </div>
+          ) : null}
           <SettingsPanel
             thread={thread}
             personas={personas}
@@ -722,6 +771,7 @@ export function PlayRoom({ mode, entity, initialThreadId, scenarioId }: Props) {
             onBranch={(id) => {
               persist({ ...thread, activeBranchId: id });
             }}
+          groupInnerAllowed={groupInnerAllowed}
           />
         </div>
       </section>
@@ -737,6 +787,7 @@ export function PlayRoom({ mode, entity, initialThreadId, scenarioId }: Props) {
             onBranch={(id) => {
               persist({ ...thread, activeBranchId: id });
             }}
+          groupInnerAllowed={groupInnerAllowed}
           />
         </div>
         <div className="rounded-2xl border border-[var(--line)] bg-[var(--paper)] p-4">
@@ -756,11 +807,13 @@ function SettingsPanel({
   personas,
   onPatch,
   onBranch,
+  groupInnerAllowed = true,
 }: {
   thread: PlayThread;
   personas: ReturnType<typeof readPersonas>;
   onPatch: (p: Partial<PlayThread["settings"]>) => void;
   onBranch: (branchId: string) => void;
+  groupInnerAllowed?: boolean;
 }) {
   return (
     <div className="mt-3 space-y-3 text-sm">
@@ -813,10 +866,11 @@ function SettingsPanel({
       <label className="flex items-center gap-2 text-xs">
         <input
           type="checkbox"
-          checked={thread.settings.innerMonologue}
+          checked={Boolean(thread.settings.innerMonologue && groupInnerAllowed)}
+          disabled={!groupInnerAllowed}
           onChange={(e) => onPatch({ innerMonologue: e.target.checked })}
         />
-        บทในใจ
+        บทในใจ{!groupInnerAllowed ? " (กลุ่ม: ต้องยินยอมครบ)" : ""}
       </label>
       <label className="block">
         <span className="text-xs text-[var(--muted)]">ตัวตน</span>
@@ -939,6 +993,7 @@ function modeLabel(mode: PlayMode) {
   if (mode === "character") return "ตัวละคร";
   if (mode === "scene") return "ฉากเรื่อง";
   if (mode === "world") return "โลก";
+  if (mode === "group") return "ห้องกลุ่ม";
   return "หลายตัวละคร";
 }
 

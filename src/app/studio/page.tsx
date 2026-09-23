@@ -63,6 +63,12 @@ export default function StudioPage() {
         >
           สร้างภาพ
         </Link>
+        <Link
+          href="/studio/moderation"
+          className="rounded-full border border-[var(--line)] px-4 py-2"
+        >
+          คิวตรวจ
+        </Link>
         <Link href="/wallet" className="rounded-full border border-[var(--line)] px-4 py-2">
           กระเป๋า
         </Link>

@@ -10,6 +10,9 @@ const links = [
   { href: "/studio", label: th.nav.studio },
   { href: "/wallet", label: th.nav.wallet },
   { href: "/me/threads", label: th.nav.threads },
+  { href: "/play/group", label: "กลุ่ม" },
+  { href: "/notifications", label: th.nav.notifications },
+  { href: "/settings", label: th.nav.settings },
 ];
 
 export function SiteHeader() {

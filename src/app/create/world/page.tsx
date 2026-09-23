@@ -30,6 +30,7 @@ import {
   type UserWorld,
   upsertWorld,
 } from "@/lib/user-works-store";
+import { enqueueModerationJob } from "@/lib/moderation-store";
 import type { Rating } from "@/data/catalog";
 
 function blank(): UserWorld {
@@ -104,8 +105,18 @@ function WorldInner() {
       next.status = "draft";
     }
     upsertWorld(next);
+    if (publish && next.visibility === "public") {
+      enqueueModerationJob({
+        targetType: "world",
+        targetId: next.id,
+        targetTitle: next.title,
+        creatorHandle: next.creatorHandle,
+        body: [next.premise, next.lore, next.setting].join("\n"),
+        rating: next.rating,
+      });
+    }
     setDraft(next);
-    setMsg(publish ? "เผยแพร่โลกแล้ว" : "บันทึกฉบับร่างแล้ว");
+    setMsg(publish ? "เผยแพร่แล้ว · ส่งเข้าคิวตรวจ (stub)" : "บันทึกฉบับร่างแล้ว");
     if (publish) router.push(`/worlds/${next.id}`);
     else router.replace(`/create/world?id=${next.id}`);
   };

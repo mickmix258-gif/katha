@@ -88,6 +88,11 @@ export default function WorldDetail({
           สถานะ: รอตรวจ (stub)
         </p>
       ) : null}
+      {item.status === "declined" ? (
+        <p className="mt-3 rounded-xl border border-[var(--accent)]/50 bg-[var(--paper)] px-3 py-2 text-sm text-[var(--accent-2)]">
+          สถานะ: ไม่ผ่านการตรวจ — ดูที่สตูดิโอ → คิวตรวจ
+        </p>
+      ) : null}
       <FollowButton handle={item.creatorHandle} />
       <WorkActions workId={item.id} baseLikes={item.likeCount ?? 0} />
       <p className="mt-3 text-[var(--muted)]">{item.premise}</p>

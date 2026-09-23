@@ -35,6 +35,7 @@ import {
   type UserScene,
   upsertScene,
 } from "@/lib/user-works-store";
+import { enqueueModerationJob } from "@/lib/moderation-store";
 import type { Rating } from "@/data/catalog";
 
 function blank(): UserScene {
@@ -114,8 +115,18 @@ function SceneInner() {
       next.status = "draft";
     }
     upsertScene(next);
+    if (publish && next.visibility === "public") {
+      enqueueModerationJob({
+        targetType: "scene",
+        targetId: next.id,
+        targetTitle: next.title,
+        creatorHandle: next.creatorHandle,
+        body: [next.premise, next.openingNarration, next.setting].join("\n"),
+        rating: next.rating,
+      });
+    }
     setDraft(next);
-    setMsg(publish ? "เผยแพร่ฉากแล้ว — ดูในสำรวจ/ฉากเรื่อง" : "บันทึกฉบับร่างแล้ว");
+    setMsg(publish ? "เผยแพร่แล้ว · ส่งเข้าคิวตรวจ (stub)" : "บันทึกฉบับร่างแล้ว");
     if (publish) router.push(`/scenes/${next.id}`);
     else router.replace(`/create/scene?id=${next.id}`);
   };

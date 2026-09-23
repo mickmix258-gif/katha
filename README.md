@@ -33,7 +33,7 @@ Open http://localhost:3000
 - Publish flow: draft → published / pending-moderation stub; works merge into explore via `localStorage` (`katha.userWorks.v1`)
 - Age gate: characters must be 18+; no underage fields
 
-### M4 (current)
+### M4
 - Play routes: `/play/character/[id]`, `/play/scene/[id]`, `/play/world/[id]`, `/play/thread/[threadId]`
 - Thread store in `localStorage` (`katha.threads.v1`): messages, branches, settings, memory cards, last-read
 - Mock LLM stream adapter (`src/lib/play/llm-adapter.ts`) — swap via `setLlmAdapter` for a real provider
@@ -50,6 +50,14 @@ Open http://localhost:3000
 - `docs/M4_ACCEPTANCE_CHECKLIST.md` — checklist for Emmy
 - `src/locales/th.json` — visible Thai copy
 
+### M5
+- Moon wallet + ledger, mock image studio, gallery, tip, creator studio dashboard
+
+### M6
+- Group rooms (`/play/group`, `/room/[threadId]`) 2–4 seats + character/scene
+- Moderation stub queue `/studio/moderation` + report flows + AI verdict mock
+- Notifications center; settings age/content mode; PWA manifest + offline shell SW
+
 ## Out of scope (do not start here)
 
-Group rooms (M6), payments / wallet billing (M5), real moderation queue, cloud thread sync.
+Real payment PSP, real GPU, multi-device sync server, Telegram bot.

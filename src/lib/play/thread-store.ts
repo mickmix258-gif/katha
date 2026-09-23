@@ -79,6 +79,8 @@ export function createThread(input: {
   opening?: { role: PlayMessage["role"]; content: string };
   scenarioId?: string;
   settings?: Partial<ThreadSettings>;
+  groupRoomId?: string;
+  groupEntityKind?: "character" | "scene";
 }): PlayThread {
   const now = new Date().toISOString();
   const branchId = newId("branch");
@@ -107,6 +109,8 @@ export function createThread(input: {
     createdAt: now,
     updatedAt: now,
     scenarioId: input.scenarioId,
+    groupRoomId: input.groupRoomId,
+    groupEntityKind: input.groupEntityKind,
   };
   return saveThread(thread);
 }

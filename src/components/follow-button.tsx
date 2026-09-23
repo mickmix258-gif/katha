@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { readSocial, toggleFollow } from "@/lib/interaction-store";
+import { pushNotification } from "@/lib/notification-store";
 
 export function FollowButton({ handle }: { handle: string }) {
   const [following, setFollowing] = useState(false);
@@ -21,8 +22,17 @@ export function FollowButton({ handle }: { handle: string }) {
     <button
       type="button"
       onClick={() => {
-        toggleFollow(handle);
-        setFollowing(readSocial().following.includes(handle));
+        const nowFollowing = toggleFollow(handle);
+        setFollowing(nowFollowing);
+        if (nowFollowing) {
+          pushNotification({
+            type: "follow",
+            title: `ติดตาม @${handle}`,
+            body: "คุณเริ่มติดตามครีเอเตอร์นี้แล้ว",
+            href: `/c/${handle}`,
+            payload: { handle },
+          });
+        }
       }}
       className={`mt-4 rounded-full px-5 py-2 text-sm ${
         following ? "bg-[var(--accent)] text-black" : "border border-[var(--line)]"

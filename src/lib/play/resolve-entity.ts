@@ -224,3 +224,11 @@ export function playHref(mode: PlayMode, id: string) {
   if (mode === "multi_npc") return `/play/scene/${id}`;
   return `/play/${mode}/${id}`;
 }
+
+/** Resolve underlying entity for a group room (character or scene). */
+export function resolveGroupEntity(
+  kind: "character" | "scene",
+  id: string,
+): PlayEntity | null {
+  return resolvePlayEntity(kind, id);
+}
