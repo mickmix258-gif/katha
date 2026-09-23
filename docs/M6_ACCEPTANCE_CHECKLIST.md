@@ -2,7 +2,7 @@
 
 Source: `docs/M6_TASK_BRIEF.md` + `docs/KATHA-FULL-FEATURE-SPEC-EN.md` §E group / §I Moderation / §J PWA / §8 M6  
 Baseline M5: `251eb402af40d00c51f019d20381f1ba2fe5807d` (PASS)  
-M6 commit: _(fill after push)_  
+M6 commit: `a323ade2549e48d8077dd23f9bfa8ee5f32f7a9a`  
 Verified: _(Emmy)_
 
 ## Gate
