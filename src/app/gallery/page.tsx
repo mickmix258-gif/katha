@@ -122,7 +122,7 @@ export default function GalleryPage() {
                 <p className="line-clamp-2 text-sm">{img.prompt}</p>
                 <p className="mt-2 text-[10px] text-[var(--muted)]">
                   {styleLabel(img.styleId)} · {img.rating === "mature" ? "ผู้ใหญ่" : "ทั่วไป"} ·{" "}
-                  {img.source === "generated" ? (img.fromModel ? "จากโมเดลจริง" : "สร้างเอง") : "ซีด (placeholder)"}
+                  {img.source === "generated" ? (img.fromModel ? "จากบริการสร้างภาพ" : "สร้างเอง") : "ซีด (placeholder)"}
                   {img.costMoons ? ` · −${img.costMoons}` : ""}
                   {img.entityTitle ? ` · ${img.entityTitle}` : ""}
                 </p>

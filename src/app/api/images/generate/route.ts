@@ -4,9 +4,10 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-/** Known-good, fast text-to-image endpoint (valid presets + jpeg). */
-const DEFAULT_MODEL = "fal-ai/flux/schnell";
+/** Optional paid fallback when FAL_KEY is set. */
+const FAL_DEFAULT_MODEL = "fal-ai/flux/schnell";
 const TIMEOUT_MS = 50_000;
+const POLLINATIONS_TIMEOUT_MS = 45_000;
 
 const STYLE_SUFFIX: Record<string, string> = {
   ink: "ink wash illustration, cinnabar red accents, Thai literary aesthetic",
@@ -22,10 +23,6 @@ type Body = {
   rating?: "safe" | "mature";
 };
 
-function thaiNoProvider() {
-  return "ยังไม่ได้ตั้งค่าผู้ให้บริการสร้างภาพ (FAL_KEY) — ติดต่อผู้ดูแลระบบ";
-}
-
 /** Append style + rating hint; never strip sexual terms from the user prompt. */
 function buildPrompt(prompt: string, styleId: string, rating: "safe" | "mature") {
   const style = STYLE_SUFFIX[styleId] ?? STYLE_SUFFIX.ink;
@@ -36,13 +33,33 @@ function buildPrompt(prompt: string, styleId: string, rating: "safe" | "mature")
   return `${prompt.trim()}. Style: ${style}. Tone: ${ratingHint}.`;
 }
 
-/** Safe, non-secret debug code for clients / ops (never include key material). */
-function classifyProviderError(err: unknown): {
+function randomSeed(): number {
+  return Math.floor(Math.random() * 2_147_483_647);
+}
+
+/** Build public Pollinations text-to-image URL (no API key). */
+function buildPollinationsUrl(fullPrompt: string, seed: number) {
+  const encoded = encodeURIComponent(fullPrompt);
+  const params = new URLSearchParams({
+    width: "768",
+    height: "1024",
+    nologo: "true",
+    seed: String(seed),
+    // Do not force Pollinations safe-mode; mature prompts must keep sexual terms.
+    safe: "false",
+  });
+  return `https://image.pollinations.ai/prompt/${encoded}?${params.toString()}`;
+}
+
+type ProviderOk = { imageUrl: string; seed: number; model: string };
+type ProviderFail = {
   reason: string;
   messageTh: string;
   status: number;
   falStatus?: number;
-} {
+};
+
+function classifyProviderError(err: unknown, source: "pollinations" | "fal"): ProviderFail {
   const message = err instanceof Error ? err.message : String(err);
   const lower = message.toLowerCase();
   const falStatus =
@@ -93,7 +110,8 @@ function classifyProviderError(err: unknown): {
     lower.includes("nsfw") ||
     lower.includes("safety") ||
     lower.includes("content policy") ||
-    lower.includes("blocked")
+    lower.includes("blocked") ||
+    lower.includes("moderated")
   ) {
     return {
       reason: "safe_mode",
@@ -103,7 +121,7 @@ function classifyProviderError(err: unknown): {
     };
   }
 
-  if (falStatus === 429 || lower.includes("rate limit")) {
+  if (falStatus === 429 || lower.includes("rate limit") || lower.includes("too many requests") || lower.includes("queue full")) {
     return {
       reason: "rate_limited",
       messageTh: "เรียกผู้ให้บริการถี่เกินไป — รอสักครู่แล้วลองใหม่",
@@ -114,25 +132,157 @@ function classifyProviderError(err: unknown): {
 
   return {
     reason: "provider_error",
-    messageTh: "สร้างภาพไม่สำเร็จ — ผู้ให้บริการผิดพลาด ลองใหม่ภายหลัง",
+    messageTh:
+      source === "pollinations"
+        ? "สร้างภาพไม่สำเร็จ — บริการฟรีผิดพลาด ลองใหม่ภายหลัง"
+        : "สร้างภาพไม่สำเร็จ — ผู้ให้บริการผิดพลาด ลองใหม่ภายหลัง",
     status: 502,
     falStatus,
   };
 }
 
-export async function POST(req: Request) {
-  const falKey = process.env.FAL_KEY?.trim();
-  if (!falKey) {
-    return NextResponse.json(
-      {
-        ok: false,
-        reason: "no_provider",
-        messageTh: thaiNoProvider(),
-      },
-      { status: 503 },
-    );
+/**
+ * Free primary: Pollinations text-to-image (no API key).
+ * Fetches server-side to confirm image bytes, returns the public HTTPS URL.
+ */
+async function tryPollinations(
+  fullPrompt: string,
+  seed: number,
+): Promise<ProviderOk> {
+  const imageUrl = buildPollinationsUrl(fullPrompt, seed);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), POLLINATIONS_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(imageUrl, {
+      method: "GET",
+      signal: controller.signal,
+      headers: { Accept: "image/*,*/*" },
+      // Avoid Next/fetch caching a failed/partial response across requests.
+      cache: "no-store",
+      redirect: "follow",
+    });
+
+    const contentType = (res.headers.get("content-type") || "").toLowerCase();
+
+    if (res.status === 429) {
+      let detail = "rate_limited";
+      try {
+        const j = (await res.json()) as { message?: string };
+        if (j.message) detail = j.message.slice(0, 160);
+      } catch {
+        /* ignore */
+      }
+      const err = new Error(`Too Many Requests: ${detail}`);
+      throw err;
+    }
+
+    if (!res.ok) {
+      let bodySnippet = "";
+      try {
+        bodySnippet = (await res.text()).slice(0, 200);
+      } catch {
+        /* ignore */
+      }
+      const lower = bodySnippet.toLowerCase();
+      if (
+        lower.includes("nsfw") ||
+        lower.includes("safety") ||
+        lower.includes("blocked") ||
+        lower.includes("moderated") ||
+        lower.includes("content policy")
+      ) {
+        throw new Error(`content policy blocked: ${bodySnippet.slice(0, 80)}`);
+      }
+      throw new Error(`pollinations HTTP ${res.status}: ${bodySnippet.slice(0, 120)}`);
+    }
+
+    if (!contentType.startsWith("image/")) {
+      let bodySnippet = "";
+      try {
+        bodySnippet = (await res.text()).slice(0, 240);
+      } catch {
+        /* ignore */
+      }
+      const lower = bodySnippet.toLowerCase();
+      if (lower.includes("queue full") || lower.includes("too many")) {
+        throw new Error(`Too Many Requests: ${bodySnippet.slice(0, 120)}`);
+      }
+      if (
+        lower.includes("nsfw") ||
+        lower.includes("safety") ||
+        lower.includes("blocked") ||
+        lower.includes("moderated")
+      ) {
+        throw new Error(`content policy blocked: ${bodySnippet.slice(0, 80)}`);
+      }
+      throw new Error(`pollinations non-image response (${contentType}): ${bodySnippet.slice(0, 120)}`);
+    }
+
+    // Consume body to ensure generation completed (and warm CDN cache for the client).
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.byteLength < 256) {
+      throw new Error("pollinations returned empty/tiny image");
+    }
+    // JPEG/PNG/WebP magic — reject HTML/JSON disguised as image.
+    const isJpeg = buf[0] === 0xff && buf[1] === 0xd8;
+    const isPng = buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47;
+    const isWebp = buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46;
+    if (!isJpeg && !isPng && !isWebp) {
+      throw new Error("pollinations payload is not a valid image");
+    }
+
+    return {
+      imageUrl,
+      seed,
+      model: "pollinations",
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Optional secondary: fal.ai when FAL_KEY is present. */
+async function tryFal(fullPrompt: string, falKey: string): Promise<ProviderOk> {
+  const model = process.env.IMAGE_GEN_MODEL?.trim() || FAL_DEFAULT_MODEL;
+  const fal = createFalClient({ credentials: falKey });
+
+  const result = await fal.subscribe(model as "fal-ai/flux/schnell", {
+    input: {
+      prompt: fullPrompt,
+      num_images: 1,
+      image_size: "portrait_4_3",
+      enable_safety_checker: true,
+      output_format: "jpeg",
+      num_inference_steps: model.includes("schnell") ? 4 : 28,
+    },
+    timeout: TIMEOUT_MS,
+  });
+
+  const data = result.data as {
+    images?: Array<{ url?: string }>;
+    seed?: number;
+    has_nsfw_concepts?: boolean[];
+  };
+
+  if (data.has_nsfw_concepts?.[0]) {
+    const err = new Error("nsfw / safety checker blocked");
+    throw err;
   }
 
+  const imageUrl = data.images?.[0]?.url;
+  if (!imageUrl) {
+    throw new Error("empty_images from fal");
+  }
+
+  return {
+    imageUrl,
+    seed: typeof data.seed === "number" ? data.seed : randomSeed(),
+    model,
+  };
+}
+
+export async function POST(req: Request) {
   let body: Body;
   try {
     body = (await req.json()) as Body;
@@ -161,82 +311,72 @@ export async function POST(req: Request) {
 
   const styleId = body.styleId ?? "ink";
   const rating = body.rating === "mature" ? "mature" : "safe";
-  const model = process.env.IMAGE_GEN_MODEL?.trim() || DEFAULT_MODEL;
   const fullPrompt = buildPrompt(prompt, styleId, rating);
+  const seed = randomSeed();
 
-  // Per-request client — avoids mutating the process-wide singleton credentials.
-  const fal = createFalClient({ credentials: falKey });
-
+  // 1) Always try free Pollinations first (no API key).
   try {
-    const result = await fal.subscribe(model as "fal-ai/flux/schnell", {
-      // Valid Flux input fields (see fal-ai/flux/schnell + flux/dev schemas).
-      // Never disable safety_checker: accounts without that privilege get HTTP 403 Forbidden.
-      input: {
-        prompt: fullPrompt,
-        num_images: 1,
-        image_size: "portrait_4_3",
-        enable_safety_checker: true,
-        output_format: "jpeg",
-        num_inference_steps: model.includes("schnell") ? 4 : 28,
-      },
-      timeout: TIMEOUT_MS,
-    });
-
-    const data = result.data as {
-      images?: Array<{ url?: string }>;
-      seed?: number;
-      has_nsfw_concepts?: boolean[];
-    };
-
-    if (data.has_nsfw_concepts?.[0]) {
-      return NextResponse.json(
-        {
-          ok: false,
-          reason: "safe_mode",
-          messageTh: "ถูกบล็อกโดยโหมดปลอดภัยของโมเดล — ลองปรับพรอมต์หรือเรตติ้ง",
-        },
-        { status: 422 },
-      );
-    }
-
-    const imageUrl = data.images?.[0]?.url;
-    if (!imageUrl) {
-      return NextResponse.json(
-        {
-          ok: false,
-          reason: "provider_error",
-          messageTh: "สร้างภาพไม่สำเร็จ — ไม่ได้รับรูปจากโมเดล",
-          detail: "empty_images",
-        },
-        { status: 502 },
-      );
-    }
-
+    const out = await tryPollinations(fullPrompt, seed);
     return NextResponse.json({
       ok: true,
-      imageUrl,
-      seed: typeof data.seed === "number" ? data.seed : undefined,
-      model,
+      imageUrl: out.imageUrl,
+      seed: out.seed,
+      model: out.model,
       fromModel: true,
+      provider: "pollinations",
     });
-  } catch (err) {
-    const classified = classifyProviderError(err);
-    const message = err instanceof Error ? err.message : String(err);
-    // Log message only — never credentials / FAL_KEY.
+  } catch (pollErr) {
+    const pollClassified = classifyProviderError(pollErr, "pollinations");
+    const pollMsg = pollErr instanceof Error ? pollErr.message : String(pollErr);
     console.error(
-      "[api/images/generate]",
-      classified.reason,
-      classified.falStatus ?? "",
-      message.slice(0, 200),
+      "[api/images/generate] pollinations",
+      pollClassified.reason,
+      pollMsg.slice(0, 200),
     );
+
+    // 2) Optional fal fallback only when key is present.
+    const falKey = process.env.FAL_KEY?.trim();
+    if (falKey) {
+      try {
+        const out = await tryFal(fullPrompt, falKey);
+        return NextResponse.json({
+          ok: true,
+          imageUrl: out.imageUrl,
+          seed: out.seed,
+          model: out.model,
+          fromModel: true,
+          provider: "fal",
+        });
+      } catch (falErr) {
+        const falClassified = classifyProviderError(falErr, "fal");
+        const falMsg = falErr instanceof Error ? falErr.message : String(falErr);
+        console.error(
+          "[api/images/generate] fal",
+          falClassified.reason,
+          falClassified.falStatus ?? "",
+          falMsg.slice(0, 200),
+        );
+        // Prefer fal's classification if we attempted it; else pollinations.
+        return NextResponse.json(
+          {
+            ok: false,
+            reason: falClassified.reason,
+            messageTh: falClassified.messageTh,
+            ...(falClassified.falStatus ? { falStatus: falClassified.falStatus } : {}),
+          },
+          { status: falClassified.status },
+        );
+      }
+    }
+
+    // Free provider failed and no fal key — surface Thai error (never mock SVG success).
     return NextResponse.json(
       {
         ok: false,
-        reason: classified.reason,
-        messageTh: classified.messageTh,
-        ...(classified.falStatus ? { falStatus: classified.falStatus } : {}),
+        reason: pollClassified.reason,
+        messageTh: pollClassified.messageTh,
       },
-      { status: classified.status },
+      { status: pollClassified.status },
     );
   }
 }

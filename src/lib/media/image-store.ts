@@ -10,7 +10,7 @@ export type GalleryImage = {
   prompt: string;
   styleId: string;
   rating: "safe" | "mature";
-  /** HTTPS URL from fal or SVG data URL (seed placeholders). */
+  /** HTTPS image URL from provider, or SVG data URL (seed placeholders). */
   dataUrl: string;
   seed: number;
   source: "generated" | "seed";
@@ -18,7 +18,7 @@ export type GalleryImage = {
   threadId?: string;
   entityTitle?: string;
   costMoons: number;
-  /** Present when generated via real fal model. */
+  /** Present when generated via a real image model/service. */
   model?: string;
   fromModel?: boolean;
 };
@@ -129,9 +129,9 @@ type ApiFail = {
 };
 
 /**
- * Real model generation via `/api/images/generate` (fal.ai).
+ * Real model generation via `/api/images/generate` (free Pollinations first).
  * Checks balance first; deducts IMAGE_COST moons only after a successful response.
- * Never falls back to SVG mock on missing key / provider failure.
+ * Never falls back to SVG mock on provider failure.
  */
 export async function generateImage(input: {
   prompt: string;
@@ -244,7 +244,7 @@ export function failMessageTh(result: Extract<GenerateResult, { ok: false }>): s
     case "insufficient":
       return `พระจันทร์ไม่พอ (มี ${result.balance} ต้องการ ${result.need ?? IMAGE_COST}) — รับโบนัสที่กระเป๋า`;
     case "no_provider":
-      return "ยังไม่ได้ตั้งค่าผู้ให้บริการสร้างภาพ (FAL_KEY) — ติดต่อผู้ดูแลระบบ";
+      return "บริการสร้างภาพยังไม่พร้อม — ลองใหม่ภายหลังหรือติดต่อผู้ดูแลระบบ";
     case "provider_auth":
       return "คีย์ผู้ให้บริการไม่ถูกต้องหรือหมดอายุ — ติดต่อผู้ดูแลระบบ";
     case "provider_forbidden":

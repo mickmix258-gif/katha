@@ -77,7 +77,7 @@ export function ImageStudio({ threadId, entityTitle, compact, onGenerated }: Pro
       setPreview(result.image.dataUrl);
       setSuccessNote(
         result.image.fromModel
-          ? `จากโมเดลจริง${result.image.model ? ` · ${result.image.model}` : ""} · −${IMAGE_COST}`
+          ? `จากบริการสร้างภาพ${result.image.model ? ` · ${result.image.model}` : ""} · −${IMAGE_COST}`
           : `สร้างภาพแล้ว · −${IMAGE_COST}`,
       );
       onGenerated?.(result.image.id);
@@ -187,7 +187,7 @@ export function ImageStudio({ threadId, entityTitle, compact, onGenerated }: Pro
       ) : null}
       {!compact ? (
         <p className="mt-3 text-xs text-[var(--muted)]">
-          สร้างด้วยโมเดลจริงผ่านเซิร์ฟเวอร์ (fal.ai) · หักพระจันทร์เมื่อสำเร็จเท่านั้น · ดูทั้งหมดที่{" "}
+          สร้างจากบริการสร้างภาพฟรีผ่านเซิร์ฟเวอร์ · หักพระจันทร์เมื่อสำเร็จเท่านั้น · ดูทั้งหมดที่{" "}
           <Link href="/gallery" className="text-[var(--accent-2)]">
             แกลเลอรี
           </Link>
