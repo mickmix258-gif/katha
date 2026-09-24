@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Noto_Sans_Thai } from "next/font/google";
 import { SiteFooter, SiteHeader } from "@/components/site-shell";
 import { PwaRegister } from "@/components/pwa-register";
+import { AuthSessionProvider } from "@/components/auth/session-provider";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
@@ -40,11 +41,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="th">
       <body className={`${noto.variable} antialiased`}>
-        <PwaRegister />
-        <SiteHeader />
-        <main>{children}</main>
-        <SiteFooter />
-        <Analytics />
+        <AuthSessionProvider>
+          <PwaRegister />
+          <SiteHeader />
+          <main>{children}</main>
+          <SiteFooter />
+          <Analytics />
+        </AuthSessionProvider>
       </body>
     </html>
   );

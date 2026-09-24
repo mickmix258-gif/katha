@@ -2,7 +2,7 @@
 
 import { characters } from "@/data/catalog";
 import { newId } from "@/lib/user-works-store";
-import { IMAGE_COST, readWallet, spendMoons } from "@/lib/wallet-store";
+import { IMAGE_COST, readWallet, spendMoons, writeWallet } from "@/lib/wallet-store";
 import { hashString, renderMockImage, type StylePresetId } from "./mock-image";
 
 export type GalleryImage = {
@@ -102,7 +102,8 @@ export type GenerateFailReason =
   | "rate_limited"
   | "timeout"
   | "safe_mode"
-  | "bad_request";
+  | "bad_request"
+  | "unauthorized";
 
 export type GenerateResult =
   | { ok: true; image: GalleryImage; balance: number }
@@ -120,18 +121,27 @@ type ApiOk = {
   dataUrl?: string;
   seed?: number;
   model?: string;
+  charged?: boolean;
+  balance?: number;
+  costMoons?: number;
 };
 
 type ApiFail = {
   ok: false;
   reason?: GenerateFailReason;
   messageTh?: string;
+  balance?: number;
+  need?: number;
+  charged?: boolean;
 };
 
 /**
- * Real model generation via `/api/images/generate` (free Pollinations first).
- * Checks balance first; deducts IMAGE_COST moons only after a successful response.
- * Never falls back to SVG mock on provider failure.
+ * Real model generation via `/api/images/generate` (server control plane).
+ * Browser never calls Pollinations/fal directly and never sees provider keys.
+ *
+ * When auth is configured: server deducts moons after success (`charged: true`).
+ * When auth is off: client deducts from local wallet after success (MVP fallback).
+ * Rate-limit 429 never charges.
  */
 export async function generateImage(input: {
   prompt: string;
@@ -141,14 +151,16 @@ export async function generateImage(input: {
   entityTitle?: string;
 }): Promise<GenerateResult> {
   const prompt = input.prompt.trim();
-  const balance = readWallet().balance;
-  if (!prompt) return { ok: false, reason: "empty_prompt", balance };
+  const localBalance = readWallet().balance;
+  if (!prompt) return { ok: false, reason: "empty_prompt", balance: localBalance };
 
-  if (balance < IMAGE_COST) {
-    return { ok: false, reason: "insufficient", balance, need: IMAGE_COST };
+  // Soft local pre-check (authoritative check is server when auth is on).
+  if (localBalance < IMAGE_COST) {
+    // Still attempt server path — logged-in users may have server balance only.
   }
 
   let api: ApiOk | ApiFail;
+  let httpStatus = 0;
   try {
     const res = await fetch("/api/images/generate", {
       method: "POST",
@@ -159,6 +171,7 @@ export async function generateImage(input: {
         rating: input.rating ?? "safe",
       }),
     });
+    httpStatus = res.status;
     api = (await res.json()) as ApiOk | ApiFail;
   } catch {
     return {
@@ -170,10 +183,24 @@ export async function generateImage(input: {
   }
 
   if (!api.ok) {
+    const balance =
+      typeof api.balance === "number" ? api.balance : readWallet().balance;
+    if (typeof api.balance === "number") {
+      // Sync local display cache when server reported balance
+      const w = readWallet();
+      writeWallet({ ...w, balance: api.balance });
+    }
     return {
       ok: false,
-      reason: api.reason ?? "provider_error",
-      balance: readWallet().balance,
+      reason:
+        api.reason ??
+        (httpStatus === 429
+          ? "rate_limited"
+          : httpStatus === 401
+            ? "unauthorized"
+            : "provider_error"),
+      balance,
+      need: api.need,
       messageTh: api.messageTh,
     };
   }
@@ -188,13 +215,22 @@ export async function generateImage(input: {
     };
   }
 
-  // Charge only after successful generation.
-  const spend = spendMoons(IMAGE_COST, "image_spend", "สร้างภาพ", {
-    prompt: prompt.slice(0, 80),
-    model: api.model ?? "",
-  });
-  if (!spend.ok) {
-    return { ok: false, reason: "insufficient", balance: spend.balance, need: IMAGE_COST };
+  let balanceAfter: number;
+  if (api.charged && typeof api.balance === "number") {
+    // Server already deducted — sync local display wallet; do NOT spend again.
+    const w = readWallet();
+    writeWallet({ ...w, balance: api.balance });
+    balanceAfter = api.balance;
+  } else {
+    // Auth not configured: charge local wallet only after success.
+    const spend = spendMoons(IMAGE_COST, "image_spend", "สร้างภาพ", {
+      prompt: prompt.slice(0, 80),
+      model: api.model ?? "",
+    });
+    if (!spend.ok) {
+      return { ok: false, reason: "insufficient", balance: spend.balance, need: IMAGE_COST };
+    }
+    balanceAfter = spend.balance;
   }
 
   const styleId = input.styleId ?? "ink";
@@ -222,7 +258,7 @@ export async function generateImage(input: {
   const state = readImages();
   state.images.unshift(image);
   writeImages(state);
-  return { ok: true, image, balance: spend.balance };
+  return { ok: true, image, balance: balanceAfter };
 }
 
 /** @deprecated Use generateImage — kept name for any leftover imports during transition. */
@@ -243,6 +279,8 @@ export function failMessageTh(result: Extract<GenerateResult, { ok: false }>): s
       return "ใส่พรอมต์ก่อนสร้างภาพ";
     case "insufficient":
       return `พระจันทร์ไม่พอ (มี ${result.balance} ต้องการ ${result.need ?? IMAGE_COST}) — รับโบนัสที่กระเป๋า`;
+    case "unauthorized":
+      return "กรุณาเข้าสู่ระบบก่อนสร้างภาพ";
     case "no_provider":
       return "บริการสร้างภาพยังไม่พร้อม — ลองใหม่ภายหลังหรือติดต่อผู้ดูแลระบบ";
     case "provider_auth":
@@ -252,7 +290,7 @@ export function failMessageTh(result: Extract<GenerateResult, { ok: false }>): s
     case "bad_input":
       return "พารามิเตอร์สร้างภาพไม่ถูกต้อง — ลองปรับพรอมต์";
     case "rate_limited":
-      return "เรียกผู้ให้บริการถี่เกินไป — รอสักครู่แล้วลองใหม่";
+      return "เรียกสร้างภาพถี่เกินไป — รอสักครู่แล้วลองใหม่";
     case "timeout":
       return "หมดเวลาสร้างภาพ — ลองใหม่";
     case "safe_mode":

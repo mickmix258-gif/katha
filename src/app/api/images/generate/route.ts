@@ -1,5 +1,12 @@
 import { createFalClient, ApiError, ValidationError } from "@fal-ai/client";
 import { NextResponse } from "next/server";
+import { auth, authEnforced } from "@/auth";
+import { getClientIp, rateLimitImageGen } from "@/lib/rate-limit";
+import {
+  assertCanAffordImage,
+  IMAGE_COST,
+  spendImageMoonsServer,
+} from "@/lib/server/wallet";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -37,7 +44,7 @@ function randomSeed(): number {
   return Math.floor(Math.random() * 2_147_483_647);
 }
 
-/** Build public Pollinations text-to-image URL (no API key). */
+/** Build public Pollinations text-to-image URL (no API key). Server-only. */
 function buildPollinationsUrl(fullPrompt: string, seed: number) {
   const encoded = encodeURIComponent(fullPrompt);
   const params = new URLSearchParams({
@@ -121,7 +128,12 @@ function classifyProviderError(err: unknown, source: "pollinations" | "fal"): Pr
     };
   }
 
-  if (falStatus === 429 || lower.includes("rate limit") || lower.includes("too many requests") || lower.includes("queue full")) {
+  if (
+    falStatus === 429 ||
+    lower.includes("rate limit") ||
+    lower.includes("too many requests") ||
+    lower.includes("queue full")
+  ) {
     return {
       reason: "rate_limited",
       messageTh: "เรียกผู้ให้บริการถี่เกินไป — รอสักครู่แล้วลองใหม่",
@@ -216,7 +228,9 @@ async function tryPollinations(
       ) {
         throw new Error(`content policy blocked: ${bodySnippet.slice(0, 80)}`);
       }
-      throw new Error(`pollinations non-image response (${contentType}): ${bodySnippet.slice(0, 120)}`);
+      throw new Error(
+        `pollinations non-image response (${contentType}): ${bodySnippet.slice(0, 120)}`,
+      );
     }
 
     // Consume body to ensure generation completed (and warm CDN cache for the client).
@@ -242,7 +256,7 @@ async function tryPollinations(
   }
 }
 
-/** Optional secondary: fal.ai when FAL_KEY is present. */
+/** Optional secondary: fal.ai when FAL_KEY is present. Key never leaves this module. */
 async function tryFal(fullPrompt: string, falKey: string): Promise<ProviderOk> {
   const model = process.env.IMAGE_GEN_MODEL?.trim() || FAL_DEFAULT_MODEL;
   const fal = createFalClient({ credentials: falKey });
@@ -282,7 +296,65 @@ async function tryFal(fullPrompt: string, falKey: string): Promise<ProviderOk> {
   };
 }
 
+function json429(retryAfterSec: number) {
+  const headers: Record<string, string> = {
+    "Retry-After": String(retryAfterSec),
+  };
+  return NextResponse.json(
+    {
+      ok: false,
+      reason: "rate_limited",
+      messageTh: `สร้างภาพถี่เกินไป — รอ ${retryAfterSec} วินาทีแล้วลองใหม่ (จำกัดต่อ IP)`,
+      retryAfterSec,
+      // Explicit: rate limit rejection MUST NOT charge moons
+      charged: false,
+    },
+    { status: 429, headers },
+  );
+}
+
 export async function POST(req: Request) {
+  // 0) Per-IP rate limit BEFORE any provider call or moon mutation.
+  const ip = getClientIp(req);
+  const rl = await rateLimitImageGen(ip);
+  if (!rl.success) {
+    return json429(rl.retryAfterSec);
+  }
+
+  // 1) When Auth.js is configured, require a session and pre-check server balance.
+  //    Moons are deducted only AFTER successful generation (see below).
+  const enforceAuth = authEnforced();
+  let userId: string | null = null;
+  if (enforceAuth) {
+    const session = await auth();
+    userId = session?.user?.id ?? null;
+    if (!userId) {
+      return NextResponse.json(
+        {
+          ok: false,
+          reason: "unauthorized",
+          messageTh: "กรุณาเข้าสู่ระบบก่อนสร้างภาพ",
+          charged: false,
+        },
+        { status: 401 },
+      );
+    }
+    const afford = await assertCanAffordImage(userId);
+    if (!afford.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          reason: "insufficient",
+          messageTh: `พระจันทร์ไม่พอ (มี ${afford.balance} ต้องการ ${afford.need}) — รับโบนัสที่กระเป๋า`,
+          balance: afford.balance,
+          need: afford.need,
+          charged: false,
+        },
+        { status: 402 },
+      );
+    }
+  }
+
   let body: Body;
   try {
     body = (await req.json()) as Body;
@@ -292,6 +364,7 @@ export async function POST(req: Request) {
         ok: false,
         reason: "bad_request",
         messageTh: "คำขอไม่ถูกต้อง",
+        charged: false,
       },
       { status: 400 },
     );
@@ -304,6 +377,7 @@ export async function POST(req: Request) {
         ok: false,
         reason: "empty_prompt",
         messageTh: "ใส่พรอมต์ก่อนสร้างภาพ",
+        charged: false,
       },
       { status: 400 },
     );
@@ -314,17 +388,59 @@ export async function POST(req: Request) {
   const fullPrompt = buildPrompt(prompt, styleId, rating);
   const seed = randomSeed();
 
-  // 1) Always try free Pollinations first (no API key).
-  try {
-    const out = await tryPollinations(fullPrompt, seed);
+  async function afterSuccess(out: ProviderOk, provider: "pollinations" | "fal") {
+    // Deduct moons only after success, only for authenticated users when auth is on.
+    if (enforceAuth && userId) {
+      const spend = await spendImageMoonsServer(userId, {
+        prompt: prompt.slice(0, 80),
+        model: out.model,
+        provider,
+      });
+      if (!spend.ok) {
+        // Race: balance changed between pre-check and spend. Image already generated —
+        // do not charge; still return image but flag insufficient for client sync.
+        return NextResponse.json(
+          {
+            ok: false,
+            reason: "insufficient",
+            messageTh: `พระจันทร์ไม่พอ (มี ${spend.balance} ต้องการ ${spend.need})`,
+            balance: spend.balance,
+            need: spend.need,
+            charged: false,
+          },
+          { status: 402 },
+        );
+      }
+      return NextResponse.json({
+        ok: true,
+        imageUrl: out.imageUrl,
+        seed: out.seed,
+        model: out.model,
+        fromModel: true,
+        provider,
+        charged: true,
+        costMoons: IMAGE_COST,
+        balance: spend.balance,
+      });
+    }
+
+    // Auth not configured: client may deduct locally; server does not charge.
     return NextResponse.json({
       ok: true,
       imageUrl: out.imageUrl,
       seed: out.seed,
       model: out.model,
       fromModel: true,
-      provider: "pollinations",
+      provider,
+      charged: false,
+      costMoons: IMAGE_COST,
     });
+  }
+
+  // 2) Always try free Pollinations first (no API key; server-side only).
+  try {
+    const out = await tryPollinations(fullPrompt, seed);
+    return afterSuccess(out, "pollinations");
   } catch (pollErr) {
     const pollClassified = classifyProviderError(pollErr, "pollinations");
     const pollMsg = pollErr instanceof Error ? pollErr.message : String(pollErr);
@@ -334,19 +450,12 @@ export async function POST(req: Request) {
       pollMsg.slice(0, 200),
     );
 
-    // 2) Optional fal fallback only when key is present.
+    // 3) Optional fal fallback only when key is present (never log the key).
     const falKey = process.env.FAL_KEY?.trim();
     if (falKey) {
       try {
         const out = await tryFal(fullPrompt, falKey);
-        return NextResponse.json({
-          ok: true,
-          imageUrl: out.imageUrl,
-          seed: out.seed,
-          model: out.model,
-          fromModel: true,
-          provider: "fal",
-        });
+        return afterSuccess(out, "fal");
       } catch (falErr) {
         const falClassified = classifyProviderError(falErr, "fal");
         const falMsg = falErr instanceof Error ? falErr.message : String(falErr);
@@ -356,12 +465,12 @@ export async function POST(req: Request) {
           falClassified.falStatus ?? "",
           falMsg.slice(0, 200),
         );
-        // Prefer fal's classification if we attempted it; else pollinations.
         return NextResponse.json(
           {
             ok: false,
             reason: falClassified.reason,
             messageTh: falClassified.messageTh,
+            charged: false,
             ...(falClassified.falStatus ? { falStatus: falClassified.falStatus } : {}),
           },
           { status: falClassified.status },
@@ -369,12 +478,12 @@ export async function POST(req: Request) {
       }
     }
 
-    // Free provider failed and no fal key — surface Thai error (never mock SVG success).
     return NextResponse.json(
       {
         ok: false,
         reason: pollClassified.reason,
         messageTh: pollClassified.messageTh,
+        charged: false,
       },
       { status: pollClassified.status },
     );

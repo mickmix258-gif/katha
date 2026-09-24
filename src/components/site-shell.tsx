@@ -1,5 +1,6 @@
 import Link from "next/link";
 import th from "@/locales/th.json";
+import { AuthNav } from "@/components/auth/auth-nav";
 
 const links = [
   { href: "/", label: th.nav.home },
@@ -30,12 +31,15 @@ export function SiteHeader() {
             </Link>
           ))}
         </nav>
-        <Link
-          href="/create"
-          className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm text-white"
-        >
-          {th.nav.create}
-        </Link>
+        <div className="flex items-center gap-2">
+          <AuthNav />
+          <Link
+            href="/create"
+            className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm text-white"
+          >
+            {th.nav.create}
+          </Link>
+        </div>
       </div>
       <nav className="flex gap-4 overflow-x-auto border-t border-[var(--line)] px-4 py-2 text-sm text-[var(--muted)] md:hidden">
         {links.map((link) => (
@@ -43,6 +47,9 @@ export function SiteHeader() {
             {link.label}
           </Link>
         ))}
+        <Link href="/login" className="whitespace-nowrap">
+          เข้าสู่ระบบ
+        </Link>
       </nav>
     </header>
   );

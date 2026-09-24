@@ -1,6 +1,11 @@
 "use client";
 
 import { newId } from "@/lib/user-works-store";
+import {
+  DAILY_GRANT_FREE,
+  DAILY_GRANT_PLUS,
+  STARTING_BALANCE,
+} from "@/lib/wallet-constants";
 
 export type LedgerType =
   | "daily_grant"
@@ -31,11 +36,13 @@ const WALLET_KEY = "katha.wallet.v1";
 const LEDGER_KEY = "katha.ledger.v1";
 const CREATOR_KEY = "katha.creatorBalances.v1";
 
-export const DAILY_GRANT_FREE = 30;
-export const DAILY_GRANT_PLUS = 300;
-export const IMAGE_COST = 10;
-export const DEFAULT_TIP_AMOUNTS = [5, 10, 30] as const;
-export const STARTING_BALANCE = 50;
+export {
+  DAILY_GRANT_FREE,
+  DAILY_GRANT_PLUS,
+  IMAGE_COST,
+  DEFAULT_TIP_AMOUNTS,
+  STARTING_BALANCE,
+} from "@/lib/wallet-constants";
 
 export function todayLocal(): string {
   const d = new Date();
