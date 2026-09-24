@@ -4,6 +4,7 @@ import { SiteFooter, SiteHeader } from "@/components/site-shell";
 import { PwaRegister } from "@/components/pwa-register";
 import { AuthSessionProvider } from "@/components/auth/session-provider";
 import { Analytics } from "@vercel/analytics/next";
+import { TelemetryBeacon } from "@/components/telemetry/telemetry-beacon";
 import "./globals.css";
 
 const noto = Noto_Sans_Thai({
@@ -43,6 +44,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${noto.variable} antialiased`}>
         <AuthSessionProvider>
           <PwaRegister />
+          <TelemetryBeacon />
           <SiteHeader />
           <main>{children}</main>
           <SiteFooter />

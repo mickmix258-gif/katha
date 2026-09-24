@@ -170,3 +170,62 @@ export function getClientIp(req: Request): string {
   if (real) return real;
   return "unknown";
 }
+
+/** Light telemetry ingest limit: 60 events / minute per IP (IP used for limiting only — never stored). */
+const TELEMETRY_PER_MINUTE = 60;
+const telemetryMemory = new Map<string, MemoryBucket>();
+
+function checkTelemetryMemory(identifier: string): RateLimitResult {
+  const r = pruneAndCheck(telemetryMemory, `tel:${identifier}`, TELEMETRY_PER_MINUTE, 60_000);
+  return {
+    success: r.success,
+    retryAfterSec: r.retryAfterSec,
+    limit: TELEMETRY_PER_MINUTE,
+    remaining: r.remaining,
+    backend: "memory",
+  };
+}
+
+/**
+ * Rate-limit telemetry POSTs per IP.
+ * IP is used as the rate-limit key only and must never be written to telemetry storage.
+ */
+export async function rateLimitTelemetry(identifier: string): Promise<RateLimitResult> {
+  if (!upstashConfigured()) {
+    return checkTelemetryMemory(identifier);
+  }
+  try {
+    const { Ratelimit } = await import("@upstash/ratelimit");
+    const { Redis } = await import("@upstash/redis");
+    const redis = Redis.fromEnv();
+    const limiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(TELEMETRY_PER_MINUTE, "1 m"),
+      prefix: "katha:tel:min",
+      analytics: false,
+    });
+    const res = await limiter.limit(identifier);
+    if (!res.success) {
+      return {
+        success: false,
+        retryAfterSec: Math.max(1, Math.ceil((res.reset - Date.now()) / 1000)),
+        limit: TELEMETRY_PER_MINUTE,
+        remaining: res.remaining,
+        backend: "upstash",
+      };
+    }
+    return {
+      success: true,
+      retryAfterSec: 0,
+      limit: TELEMETRY_PER_MINUTE,
+      remaining: res.remaining,
+      backend: "upstash",
+    };
+  } catch (err) {
+    console.error(
+      "[rate-limit] telemetry upstash failed, memory fallback",
+      err instanceof Error ? err.message.slice(0, 80) : "unknown",
+    );
+    return checkTelemetryMemory(identifier);
+  }
+}

@@ -4,6 +4,7 @@ import { characters } from "@/data/catalog";
 import { newId } from "@/lib/user-works-store";
 import { IMAGE_COST, readWallet, spendMoons, writeWallet } from "@/lib/wallet-store";
 import { hashString, renderMockImage, type StylePresetId } from "./mock-image";
+import { trackEvent } from "@/lib/telemetry-client";
 
 export type GalleryImage = {
   id: string;
@@ -153,7 +154,12 @@ export async function generateImage(input: {
 }): Promise<GenerateResult> {
   const prompt = input.prompt.trim();
   const localBalance = readWallet().balance;
-  if (!prompt) return { ok: false, reason: "empty_prompt", balance: localBalance };
+  if (!prompt) {
+    trackEvent("image_generate_fail", {
+      meta: { reason: "empty_prompt", promptLength: 0 },
+    });
+    return { ok: false, reason: "empty_prompt", balance: localBalance };
+  }
 
   // Soft local pre-check (authoritative check is server when auth is on).
   if (localBalance < IMAGE_COST) {
@@ -176,6 +182,9 @@ export async function generateImage(input: {
     httpStatus = res.status;
     api = (await res.json()) as ApiOk | ApiFail;
   } catch {
+    trackEvent("image_generate_fail", {
+      meta: { reason: "provider_error", promptLength: prompt.length },
+    });
     return {
       ok: false,
       reason: "provider_error",
@@ -193,15 +202,19 @@ export async function generateImage(input: {
       const w = readWallet();
       writeWallet({ ...w, balance: api.balance });
     }
+    const failReason =
+      api.reason ??
+      (httpStatus === 429
+        ? "rate_limited"
+        : httpStatus === 401
+          ? "unauthorized"
+          : "provider_error");
+    trackEvent("image_generate_fail", {
+      meta: { reason: failReason, promptLength: prompt.length, httpStatus },
+    });
     return {
       ok: false,
-      reason:
-        api.reason ??
-        (httpStatus === 429
-          ? "rate_limited"
-          : httpStatus === 401
-            ? "unauthorized"
-            : "provider_error"),
+      reason: failReason,
       balance,
       need: api.need,
       messageTh: api.messageTh,
@@ -210,6 +223,9 @@ export async function generateImage(input: {
 
   const imageUrl = api.imageUrl || api.dataUrl;
   if (!imageUrl) {
+    trackEvent("image_generate_fail", {
+      meta: { reason: "provider_error", promptLength: prompt.length },
+    });
     return {
       ok: false,
       reason: "provider_error",
@@ -231,6 +247,9 @@ export async function generateImage(input: {
       model: api.model ?? "",
     });
     if (!spend.ok) {
+      trackEvent("image_generate_fail", {
+        meta: { reason: "insufficient", promptLength: prompt.length },
+      });
       return { ok: false, reason: "insufficient", balance: spend.balance, need: IMAGE_COST };
     }
     balanceAfter = spend.balance;
@@ -262,6 +281,13 @@ export async function generateImage(input: {
   const state = readImages();
   state.images.unshift(image);
   writeImages(state);
+  trackEvent("image_generate_ok", {
+    meta: {
+      promptLength: prompt.length,
+      styleId: styleId.slice(0, 24),
+      fromModel: true,
+    },
+  });
   return { ok: true, image, balance: balanceAfter };
 }
 
