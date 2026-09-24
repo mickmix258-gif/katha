@@ -102,6 +102,7 @@ export type GenerateFailReason =
   | "rate_limited"
   | "timeout"
   | "safe_mode"
+  | "sfw_blocked"
   | "bad_request"
   | "unauthorized";
 
@@ -168,7 +169,8 @@ export async function generateImage(input: {
       body: JSON.stringify({
         prompt,
         styleId: input.styleId ?? "ink",
-        rating: input.rating ?? "safe",
+        // Emmy lock: always request safe; server ignores mature anyway.
+        rating: "safe",
       }),
     });
     httpStatus = res.status;
@@ -183,6 +185,7 @@ export async function generateImage(input: {
   }
 
   if (!api.ok) {
+    // Includes sfw_blocked / rate_limited / errors — never deduct moons (charged:false).
     const balance =
       typeof api.balance === "number" ? api.balance : readWallet().balance;
     if (typeof api.balance === "number") {
@@ -234,7 +237,8 @@ export async function generateImage(input: {
   }
 
   const styleId = input.styleId ?? "ink";
-  const rating = input.rating ?? "safe";
+  // Generated images are always stored as safe (SFW-only policy).
+  const rating = "safe" as const;
   const seed =
     typeof api.seed === "number"
       ? api.seed
@@ -294,7 +298,9 @@ export function failMessageTh(result: Extract<GenerateResult, { ok: false }>): s
     case "timeout":
       return "หมดเวลาสร้างภาพ — ลองใหม่";
     case "safe_mode":
-      return "ถูกบล็อกโดยโหมดปลอดภัยของโมเดล — ลองปรับพรอมต์หรือเรตติ้ง";
+      return "ถูกบล็อกโดยโหมดปลอดภัยของโมเดล — ลองปรับพรอมต์ (สูงสุดเซ็กซี่ระดับชุดว่ายน้ำ)";
+    case "sfw_blocked":
+      return "ไม่อนุญาตภาพเปลือยหรือโป๊ — ขอบเขตสูงสุดคือเซ็กซี่ระดับชุดว่ายน้ำ";
     default:
       return "สร้างภาพไม่สำเร็จ — ผู้ให้บริการผิดพลาด ลองใหม่ภายหลัง";
   }

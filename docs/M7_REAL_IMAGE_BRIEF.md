@@ -21,7 +21,7 @@ Local: put the same vars in `.env.local` (gitignored). Without `FAL_KEY`, `POST 
 ## Behavior
 
 - Cost: **10 moons** (`IMAGE_COST`), deducted only after successful generation
-- Mature rating: passed through; sexual terms are not stripped; safety checker off when `rating=mature`
+- SFW lock: `rating` ignored/forced safe; Pollinations `safe=true`; fal `enable_safety_checker: true`; see `docs/M7_SFW_IMAGE_POLICY.md`
 - Seed gallery SVG placeholders remain (source `seed`) and are not claimed as model output
 - API: `POST /api/images/generate` → `{ ok, imageUrl, seed?, model }` or `{ ok:false, reason, messageTh }`
 

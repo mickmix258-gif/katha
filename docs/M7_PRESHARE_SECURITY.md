@@ -89,3 +89,11 @@ Browser → /api/images/generate → Pollinations (free) → optional fal (FAL_K
 
 - Grep client bundles after build: no `FAL_KEY` value, no OAuth secrets.
 - Pollinations URL construction lives only in `src/app/api/images/generate/route.ts`.
+
+## SFW image policy (Emmy lock)
+
+Image generation is **SFW-only** (max = swimsuit/bikini sexy; no nudity). See `docs/M7_SFW_IMAGE_POLICY.md`.
+
+- Pollinations: `safe=true`
+- fal: `enable_safety_checker: true`
+- Prompt gate: `src/lib/media/sfw-gate.ts` → HTTP 422 `sfw_blocked`, `charged: false`

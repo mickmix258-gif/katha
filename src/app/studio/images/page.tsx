@@ -12,7 +12,7 @@ export default function StudioImagesPage() {
       <p className="mt-4 text-xs tracking-[0.3em] text-[var(--accent-2)]">M5 · IMAGE STUDIO</p>
       <h1 className="mt-2 text-3xl">สตูดิโอภาพ</h1>
       <p className="mt-2 mb-6 text-sm text-[var(--muted)]">
-        สร้างภาพจากบริการสร้างภาพ (ฟรี) · พรอมต์ + สไตล์ · หักพระจันทร์เมื่อสำเร็จ · ดูผลในแกลเลอรี
+        สร้างภาพจากบริการสร้างภาพ (ฟรี) · SFW เท่านั้น (สูงสุดเซ็กซี่ระดับชุดว่ายน้ำ) · หักพระจันทร์เมื่อสำเร็จ · ดูผลในแกลเลอรี
       </p>
       <ImageStudio />
       <p className="mt-6 text-sm">

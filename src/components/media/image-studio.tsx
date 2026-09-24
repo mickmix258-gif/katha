@@ -20,7 +20,6 @@ type Props = {
 export function ImageStudio({ threadId, entityTitle, compact, onGenerated }: Props) {
   const [prompt, setPrompt] = useState(entityTitle ? `ภาพของ ${entityTitle}` : "");
   const [styleId, setStyleId] = useState<StylePresetId>("ink");
-  const [rating, setRating] = useState<"safe" | "mature">("safe");
   const [balance, setBalance] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +64,7 @@ export function ImageStudio({ threadId, entityTitle, compact, onGenerated }: Pro
       const result = await generateImage({
         prompt,
         styleId,
-        rating,
+        rating: "safe",
         threadId,
         entityTitle,
       });
@@ -127,27 +126,9 @@ export function ImageStudio({ threadId, entityTitle, compact, onGenerated }: Pro
           </button>
         ))}
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {(
-          [
-            ["safe", "ทั่วไป"],
-            ["mature", "ผู้ใหญ่"],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setRating(id)}
-            className={`rounded-full px-3 py-1 text-xs ${
-              rating === id
-                ? "bg-[var(--accent)] text-white"
-                : "border border-[var(--line)]"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <p className="mt-3 text-xs text-[var(--muted)]">
+        นโยบายภาพ: SFW เท่านั้น · เซ็กซี่ระดับชุดว่ายน้ำ/บิกินีได้ · ห้ามเปลือยหรือโป๊
+      </p>
       <button
         type="button"
         disabled={busy}
@@ -187,7 +168,7 @@ export function ImageStudio({ threadId, entityTitle, compact, onGenerated }: Pro
       ) : null}
       {!compact ? (
         <p className="mt-3 text-xs text-[var(--muted)]">
-          สร้างจากบริการสร้างภาพฟรีผ่านเซิร์ฟเวอร์ · หักพระจันทร์เมื่อสำเร็จเท่านั้น · ดูทั้งหมดที่{" "}
+          สร้างจากบริการสร้างภาพฟรีผ่านเซิร์ฟเวอร์ · SFW ล็อก · หักพระจันทร์เมื่อสำเร็จเท่านั้น · ดูทั้งหมดที่{" "}
           <Link href="/gallery" className="text-[var(--accent-2)]">
             แกลเลอรี
           </Link>

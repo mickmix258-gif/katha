@@ -7,6 +7,7 @@ import {
   IMAGE_COST,
   spendImageMoonsServer,
 } from "@/lib/server/wallet";
+import { checkSfwPrompt } from "@/lib/media/sfw-gate";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -30,14 +31,13 @@ type Body = {
   rating?: "safe" | "mature";
 };
 
-/** Append style + rating hint; never strip sexual terms from the user prompt. */
-function buildPrompt(prompt: string, styleId: string, rating: "safe" | "mature") {
+/**
+ * Append style + SFW tone only.
+ * Image API `rating` body field is ignored / forced safe — never append mature/NSFW hints.
+ */
+function buildPrompt(prompt: string, styleId: string) {
   const style = STYLE_SUFFIX[styleId] ?? STYLE_SUFFIX.ink;
-  const ratingHint =
-    rating === "mature"
-      ? "mature adult content allowed, sensual artistic portrayal"
-      : "general audience friendly";
-  return `${prompt.trim()}. Style: ${style}. Tone: ${ratingHint}.`;
+  return `${prompt.trim()}. Style: ${style}. Tone: general audience friendly, SFW, no nudity.`;
 }
 
 function randomSeed(): number {
@@ -52,8 +52,8 @@ function buildPollinationsUrl(fullPrompt: string, seed: number) {
     height: "1024",
     nologo: "true",
     seed: String(seed),
-    // Do not force Pollinations safe-mode; mature prompts must keep sexual terms.
-    safe: "false",
+    // Emmy lock: always force Pollinations SFW safe-mode (never mature/NSFW path).
+    safe: "true",
   });
   return `https://image.pollinations.ai/prompt/${encoded}?${params.toString()}`;
 }
@@ -122,7 +122,7 @@ function classifyProviderError(err: unknown, source: "pollinations" | "fal"): Pr
   ) {
     return {
       reason: "safe_mode",
-      messageTh: "ถูกบล็อกโดยโหมดปลอดภัยของโมเดล — ลองปรับพรอมต์หรือเรตติ้ง",
+      messageTh: "ถูกบล็อกโดยโหมดปลอดภัยของโมเดล — ลองปรับพรอมต์ (สูงสุดเซ็กซี่ระดับชุดว่ายน้ำ)",
       status: 422,
       falStatus,
     };
@@ -314,14 +314,57 @@ function json429(retryAfterSec: number) {
 }
 
 export async function POST(req: Request) {
-  // 0) Per-IP rate limit BEFORE any provider call or moon mutation.
+  // 0) Parse body first so SFW gate runs before rate-limit / auth / provider / charge.
+  let body: Body;
+  try {
+    body = (await req.json()) as Body;
+  } catch {
+    return NextResponse.json(
+      {
+        ok: false,
+        reason: "bad_request",
+        messageTh: "คำขอไม่ถูกต้อง",
+        charged: false,
+      },
+      { status: 400 },
+    );
+  }
+
+  const prompt = (body.prompt ?? "").trim();
+  if (!prompt) {
+    return NextResponse.json(
+      {
+        ok: false,
+        reason: "empty_prompt",
+        messageTh: "ใส่พรอมต์ก่อนสร้างภาพ",
+        charged: false,
+      },
+      { status: 400 },
+    );
+  }
+
+  // 1) SFW prompt gate — block nude/porn/explicit BEFORE rate-limit charge / provider.
+  const sfw = checkSfwPrompt(prompt);
+  if (!sfw.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        reason: "sfw_blocked",
+        messageTh: sfw.messageTh,
+        charged: false,
+      },
+      { status: 422 },
+    );
+  }
+
+  // 2) Per-IP rate limit BEFORE any provider call or moon mutation.
   const ip = getClientIp(req);
   const rl = await rateLimitImageGen(ip);
   if (!rl.success) {
     return json429(rl.retryAfterSec);
   }
 
-  // 1) When Auth.js is configured, require a session and pre-check server balance.
+  // 3) When Auth.js is configured, require a session and pre-check server balance.
   //    Moons are deducted only AFTER successful generation (see below).
   const enforceAuth = authEnforced();
   let userId: string | null = null;
@@ -355,37 +398,10 @@ export async function POST(req: Request) {
     }
   }
 
-  let body: Body;
-  try {
-    body = (await req.json()) as Body;
-  } catch {
-    return NextResponse.json(
-      {
-        ok: false,
-        reason: "bad_request",
-        messageTh: "คำขอไม่ถูกต้อง",
-        charged: false,
-      },
-      { status: 400 },
-    );
-  }
-
-  const prompt = (body.prompt ?? "").trim();
-  if (!prompt) {
-    return NextResponse.json(
-      {
-        ok: false,
-        reason: "empty_prompt",
-        messageTh: "ใส่พรอมต์ก่อนสร้างภาพ",
-        charged: false,
-      },
-      { status: 400 },
-    );
-  }
-
   const styleId = body.styleId ?? "ink";
-  const rating = body.rating === "mature" ? "mature" : "safe";
-  const fullPrompt = buildPrompt(prompt, styleId, rating);
+  // Emmy lock: ignore client `rating` (mature → safe); never mature/NSFW tone hints.
+  void body.rating;
+  const fullPrompt = buildPrompt(prompt, styleId);
   const seed = randomSeed();
 
   async function afterSuccess(out: ProviderOk, provider: "pollinations" | "fal") {
@@ -437,7 +453,7 @@ export async function POST(req: Request) {
     });
   }
 
-  // 2) Always try free Pollinations first (no API key; server-side only).
+  // 4) Always try free Pollinations first (no API key; server-side only).
   try {
     const out = await tryPollinations(fullPrompt, seed);
     return afterSuccess(out, "pollinations");
@@ -450,7 +466,7 @@ export async function POST(req: Request) {
       pollMsg.slice(0, 200),
     );
 
-    // 3) Optional fal fallback only when key is present (never log the key).
+    // 5) Optional fal fallback only when key is present (never log the key).
     const falKey = process.env.FAL_KEY?.trim();
     if (falKey) {
       try {
