@@ -9,6 +9,8 @@ import type { NextRequest } from "next/server";
 export function middleware(request: NextRequest) {
   const response = NextResponse.next();
 
+  // Vercel/static sometimes emits Access-Control-Allow-Origin: *; strip it.
+  response.headers.delete("Access-Control-Allow-Origin");
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   response.headers.set("X-Frame-Options", "DENY");
